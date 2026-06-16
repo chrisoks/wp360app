@@ -1,0 +1,25 @@
+{
+  "name": "WorkPilot360",
+  "short_name": "WorkPilot360",
+  "description": "Mobile App für WorkPilot360",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/workpilot360-logo-header.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/workpilot360-logo-wide.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
