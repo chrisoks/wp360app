@@ -1201,14 +1201,37 @@ button.homePhotoPill:disabled {
   border-radius: 999px;
   background: #ffffff;
   color: #111827;
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 7px 12px;
+  gap: 4px;
+  padding: 4px 5px 4px 12px;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
   font-weight: 900;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.photoCaptureButton button {
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  font-weight: 950;
+}
+
+.photoCaptureButton button:first-child {
+  justify-content: flex-start;
+}
+
+.photoCaptureButton button:last-child {
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .photoCaptureButton span {
@@ -1237,12 +1260,12 @@ button.homePhotoPill:disabled {
   color: #15803d;
 }
 
-.photoCaptureButton:hover:not(:disabled) {
+.photoCaptureButton:hover {
   transform: translateY(-1px);
   box-shadow: 0 7px 16px rgba(15, 23, 42, 0.12);
 }
 
-.photoCaptureButton:disabled {
+.photoCaptureButton button:disabled {
   opacity: 0.66;
   cursor: not-allowed;
 }
@@ -3211,6 +3234,49 @@ button.projectCard:hover {
   font-size: 0.82rem;
   font-weight: 850;
   text-align: center;
+}
+
+.projectPhotoDialog {
+  width: min(560px, 100%);
+  max-height: min(780px, calc(100vh - 36px));
+  display: grid;
+  gap: 12px;
+  overflow: auto;
+  border: 1px solid #d8e1ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  padding: 14px;
+}
+
+.projectPhotoDialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.projectPhotoDialog h2 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.projectPhotoDialog > header > button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d4dde8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.projectPhotoDialogSection {
+  border: 1px solid #dce7ef;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 10px;
 }
 
 .personalHero {

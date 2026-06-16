@@ -738,6 +738,7 @@ function App() {
     category: ProjectPhotoCategory;
     projectId: string;
   } | null>(null);
+  const [photoGalleryProjectId, setPhotoGalleryProjectId] = useState("");
   const [pendingProjectPhoto, setPendingProjectPhoto] = useState<PendingProjectPhoto | null>(null);
   const beforePhotoInputRef = useRef<HTMLInputElement>(null);
   const afterPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -976,6 +977,19 @@ function App() {
     if (activeSection !== "projects" || !selectedProjectId) return;
     void loadProjectLogbookEntries();
   }, [activeSection, selectedProjectId]);
+
+  useEffect(() => {
+    if (!session || session.mode !== "project" || !session.projectId) return;
+    void loadProjectLogbookEntries(true);
+  }, [session?.mode, session?.projectId]);
+
+  useEffect(() => {
+    if (!session || session.mode !== "project" || !session.projectId) return;
+    const intervalId = window.setInterval(() => {
+      void loadProjectLogbookEntries(true);
+    }, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [session?.mode, session?.projectId]);
 
   useEffect(() => {
     return () => {
@@ -1328,6 +1342,7 @@ function App() {
     : 0;
   const selectedStampProject = data.projects.find((project) => project.id === stampProjectId);
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
+  const photoGalleryProject = data.projects.find((project) => project.id === photoGalleryProjectId);
   const activeProjectPhotoCounts = useMemo(() => {
     if (!session || session.mode !== "project") return { before: 0, after: 0 };
     return getProjectPhotoCounts(session.projectId);
@@ -2601,14 +2616,16 @@ function App() {
               <PhotoCaptureButton
                 label="Vorher"
                 count={activeProjectPhotoCounts.before}
-                disabled={uploadingPhotoCategory !== "" || activeProjectPhotoCounts.before >= 3}
-                onClick={() => void openProjectPhotoCamera("Vorherbilder")}
+                canCapture={uploadingPhotoCategory === "" && activeProjectPhotoCounts.before < 3}
+                onCapture={() => void openProjectPhotoCamera("Vorherbilder")}
+                onOpen={() => setPhotoGalleryProjectId(session.projectId)}
               />
               <PhotoCaptureButton
                 label="Nachher"
                 count={activeProjectPhotoCounts.after}
-                disabled={uploadingPhotoCategory !== "" || activeProjectPhotoCounts.after >= 3}
-                onClick={() => void openProjectPhotoCamera("Nachherbilder")}
+                canCapture={uploadingPhotoCategory === "" && activeProjectPhotoCounts.after < 3}
+                onCapture={() => void openProjectPhotoCamera("Nachherbilder")}
+                onOpen={() => setPhotoGalleryProjectId(session.projectId)}
               />
             </div>
           )}
@@ -4743,6 +4760,59 @@ function App() {
         </div>
       )}
 
+      {photoGalleryProjectId && (
+        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Projektbilder ansehen">
+          <section className="projectPhotoDialog">
+            <header>
+              <div>
+                <p className="eyebrow">Projektbilder</p>
+                <h2>{photoGalleryProject?.title || session?.projectLabel || "Projekt"}</h2>
+              </div>
+              <button type="button" onClick={() => setPhotoGalleryProjectId("")} aria-label="Projektbilder schließen">
+                ×
+              </button>
+            </header>
+            {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
+              const images = getProjectPhotoAttachments(photoGalleryProjectId, category);
+              return (
+                <section key={category} className="projectPhotoDialogSection">
+                  <div className="projectPhotoGalleryHeader">
+                    <div>
+                      <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
+                      <h3>{images.length} Bilder</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openProjectPhotoCamera(category, photoGalleryProjectId)}
+                      disabled={uploadingPhotoCategory !== "" || images.length >= 3}
+                    >
+                      Aufnehmen
+                    </button>
+                  </div>
+                  {images.length ? (
+                    <div className="projectPhotoThumbGrid">
+                      {images.map((image) => (
+                        <a
+                          href={image.dataUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
+                        >
+                          <img src={image.dataUrl} alt={image.name} />
+                          <span>{image.name}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
+                  )}
+                </section>
+              );
+            })}
+          </section>
+        </div>
+      )}
+
       <nav className="mobileNav" aria-label="Mobile Bereiche">
         {sections.filter((section) => mobileSectionIds.includes(section.id)).map((section) => {
           const Icon = section.icon;
@@ -4790,26 +4860,27 @@ function Metric({
 function PhotoCaptureButton({
   label,
   count,
-  disabled,
-  onClick,
+  canCapture,
+  onCapture,
+  onOpen,
 }: {
   label: string;
   count: number;
-  disabled: boolean;
-  onClick: () => void;
+  canCapture: boolean;
+  onCapture: () => void;
+  onOpen: () => void;
 }) {
   const cappedCount = Math.min(3, count);
   return (
-    <button
-      className={`photoCaptureButton ${cappedCount > 0 ? "hasPhotos" : "missingPhotos"}`}
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <Camera size={15} />
-      <span>{label}</span>
-      <strong>{cappedCount}/3</strong>
-    </button>
+    <div className={`photoCaptureButton ${cappedCount > 0 ? "hasPhotos" : "missingPhotos"}`}>
+      <button type="button" onClick={onOpen}>
+        <span>{label}</span>
+        <strong>{cappedCount}/3</strong>
+      </button>
+      <button type="button" disabled={!canCapture} onClick={onCapture} title={`${label} aufnehmen`}>
+        <Camera size={15} />
+      </button>
+    </div>
   );
 }
 
