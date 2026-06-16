@@ -28,6 +28,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  touch-action: manipulation;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(238, 242, 246, 0.94)),
     #eef2f6;
@@ -3836,7 +3837,7 @@ button.projectCard:hover {
   }
 
   .main {
-    padding: 16px 14px 92px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 14px calc(92px + env(safe-area-inset-bottom, 0px));
   }
 
   .topbar {
@@ -3849,11 +3850,11 @@ button.projectCard:hover {
   }
 
   .topbarLogo {
-    width: min(230px, 46vw);
-    max-height: 50px;
+    width: min(250px, 70vw);
+    max-height: 58px;
     opacity: 1;
     order: 1;
-    transform: scale(4);
+    transform: none;
     transform-origin: center;
   }
 
@@ -4078,7 +4079,7 @@ button.projectCard:hover {
     position: fixed;
     left: 10px;
     right: 10px;
-    bottom: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     z-index: 20;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -4157,7 +4158,7 @@ button.projectCard:hover {
 
 @media (max-width: 560px) {
   .main {
-    padding: 13px 10px 90px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 10px calc(92px + env(safe-area-inset-bottom, 0px));
   }
 
   h1 {
@@ -4170,9 +4171,10 @@ button.projectCard:hover {
 
   .topbarLogo {
     display: block;
-    width: min(190px, 54vw);
+    width: min(275px, 88vw);
+    max-height: 58px;
     opacity: 1;
-    transform: scale(4.2);
+    transform: none;
   }
 
   .metric {
