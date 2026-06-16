@@ -543,20 +543,63 @@ function splitPlanningKey(key: string) {
   return { board, groupName: groupParts.join(":") || "Marketing" };
 }
 
-function readImageAttachment(file: File, name: string): Promise<LogbookAttachment> {
+function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Bild konnte nicht gelesen werden."));
-    reader.onload = () =>
-      resolve({
-        name,
-        type: "Bild",
-        mimeType: file.type || "image/jpeg",
-        size: file.size,
-        dataUrl: String(reader.result ?? ""),
-      });
+    reader.onload = () => resolve(String(reader.result ?? ""));
     reader.readAsDataURL(file);
   });
+}
+
+async function compressImageForUpload(file: File) {
+  const fallback = {
+    dataUrl: await readFileAsDataUrl(file),
+    mimeType: file.type || "image/jpeg",
+    size: file.size,
+  };
+  if (!file.type.startsWith("image/")) return fallback;
+
+  const image = new Image();
+  image.decoding = "async";
+  image.src = fallback.dataUrl;
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Bild konnte nicht verarbeitet werden."));
+  });
+
+  const maxEdge = 1600;
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return fallback;
+  context.drawImage(image, 0, 0, width, height);
+
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.74);
+  if (!dataUrl || dataUrl.length >= fallback.dataUrl.length) return fallback;
+
+  return {
+    dataUrl,
+    mimeType: "image/jpeg",
+    size: Math.ceil((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75),
+  };
+}
+
+async function readImageAttachment(file: File, name: string): Promise<LogbookAttachment> {
+  const image = await compressImageForUpload(file);
+  return {
+    name,
+    type: "Bild",
+    mimeType: image.mimeType,
+    size: image.size,
+    dataUrl: image.dataUrl,
+  };
 }
 
 function contactName(contact: Contact) {
@@ -2108,7 +2151,12 @@ function App() {
       }));
       return true;
     } catch (uploadError) {
-      setPhotoUploadError(uploadError instanceof Error ? uploadError.message : "Bild konnte nicht gespeichert werden.");
+      const message = uploadError instanceof Error ? uploadError.message : "Bild konnte nicht gespeichert werden.";
+      setPhotoUploadError(
+        message.includes("413")
+          ? "Das Bild ist noch zu groß. Bitte neu aufnehmen oder ein kleineres Bild verwenden."
+          : message
+      );
       return false;
     } finally {
       setUploadingPhotoCategory("");
