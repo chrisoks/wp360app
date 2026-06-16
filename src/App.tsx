@@ -2707,7 +2707,7 @@ function App() {
 
       <main className="main">
         <header className={activeSection === "home" ? "topbar homeTopbar" : "topbar"}>
-          <img className="topbarLogo" src="/WP360_freigestellt.png" alt="WorkPilot360" />
+          <img className="topbarLogo" src="/workpilot360-logo-header.png" alt="WorkPilot360" />
           <div className="topbarTitle">
             <p className="eyebrow">WorkPilot360 PWA</p>
             <h1>{sections.find((section) => section.id === activeSection)?.label}</h1>

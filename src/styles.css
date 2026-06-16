@@ -3837,7 +3837,7 @@ button.projectCard:hover {
   }
 
   .main {
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 14px calc(92px + env(safe-area-inset-bottom, 0px));
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 14px calc(118px + env(safe-area-inset-bottom, 0px));
   }
 
   .topbar {
@@ -3850,8 +3850,8 @@ button.projectCard:hover {
   }
 
   .topbarLogo {
-    width: min(250px, 70vw);
-    max-height: 58px;
+    width: min(230px, 78vw);
+    max-height: 46px;
     opacity: 1;
     order: 1;
     transform: none;
@@ -3890,7 +3890,8 @@ button.projectCard:hover {
     order: 3;
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px 42px;
+    grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
+    gap: 8px;
   }
 
   .homeTopbar .topbarActions {
@@ -3899,6 +3900,15 @@ button.projectCard:hover {
 
   .searchBox {
     min-width: 0;
+  }
+
+  .currentUserBadge {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .currentUserBadge span {
+    display: none;
   }
 
   .contentGrid,
@@ -4158,7 +4168,7 @@ button.projectCard:hover {
 
 @media (max-width: 560px) {
   .main {
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 10px calc(92px + env(safe-area-inset-bottom, 0px));
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 8px calc(122px + env(safe-area-inset-bottom, 0px));
   }
 
   h1 {
@@ -4166,15 +4176,53 @@ button.projectCard:hover {
   }
 
   .topbarActions {
-    grid-template-columns: 1fr 42px 42px;
+    grid-template-columns: minmax(0, 1fr) 38px 38px 38px;
+    gap: 7px;
   }
 
   .topbarLogo {
     display: block;
-    width: min(275px, 88vw);
-    max-height: 58px;
+    width: min(230px, 82vw);
+    max-height: 46px;
     opacity: 1;
     transform: none;
+  }
+
+  .currentUserBadge,
+  .iconButton {
+    min-height: 38px;
+    width: 38px;
+  }
+
+  .currentUserBadge img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .searchBox {
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .timeScopeBar {
+    min-height: 0;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .timeViewSwitch {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .timeViewSwitch button {
+    min-height: 34px;
+    border-radius: 7px;
+    padding: 0 8px;
+    font-size: 0.82rem;
   }
 
   .metric {
@@ -4349,7 +4397,7 @@ button.projectCard:hover {
   }
 
   .timeViewSwitch {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .timePeriodSwitch {

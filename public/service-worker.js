@@ -1,4 +1,4 @@
-const CACHE_NAME = "workpilot360-pwa-v2";
+const CACHE_NAME = "workpilot360-pwa-v3";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
