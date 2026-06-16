@@ -1,7 +1,7 @@
 {
   "name": "WorkPilot360",
   "short_name": "WorkPilot360",
-  "description": "Mobile App für WorkPilot360",
+  "description": "Mobile App fuer WorkPilot360",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,16 +10,22 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/workpilot360-logo-header.png",
+      "src": "/pwa-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/workpilot360-logo-wide.png",
+      "src": "/pwa-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

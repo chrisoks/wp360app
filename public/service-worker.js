@@ -2,6 +2,10 @@ const CACHE_NAME = "workpilot360-pwa-v1";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
+  "/pwa-icon-192.png",
+  "/pwa-icon-512.png",
+  "/pwa-icon-maskable-512.png",
+  "/apple-touch-icon.png",
   "/workpilot360-logo-header.png",
   "/workpilot360-logo-wide.png",
   "/oks-logo.png",

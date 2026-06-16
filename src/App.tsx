@@ -13,10 +13,12 @@
   ListChecks,
   Pause,
   Play,
+  Power,
   RefreshCcw,
   Search,
   Send,
   Square,
+  UserRound,
   Users,
 } from "lucide-react";
 import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -119,6 +121,14 @@ type User = {
   planningStartTime?: string;
   planningEndTime?: string;
   planningResponsibleFor?: string[];
+};
+
+type LoginUser = Pick<User, "id" | "name" | "email" | "profileImageDataUrl" | "personalNumber"> & {
+  role?: string;
+  roleLabel?: string;
+  teamId?: string | null;
+  teamIds?: string[];
+  dailyWorkHours?: number;
 };
 
 type Project = {
@@ -261,6 +271,8 @@ type ApiData = {
 };
 
 const apiBase = import.meta.env.VITE_WORKPILOT_API_BASE?.replace(/\/$/, "") ?? "";
+const loginStorageKey = "workpilot360-pwa-login-user";
+const loginSessionStorageKey = "workpilot360-pwa-session-login-user";
 const finalInspectionItems = [
   "Auftrag vollständig erledigt",
   "Ergebnis sauber und ordentlich",
@@ -606,6 +618,19 @@ function statusClass(status?: string) {
 }
 
 function App() {
+  const [loginUser, setLoginUser] = useState<LoginUser | null>(() => {
+    try {
+      const storedUser = localStorage.getItem(loginStorageKey) ?? sessionStorage.getItem(loginSessionStorageKey);
+      return storedUser ? (JSON.parse(storedUser) as LoginUser) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(true);
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeSection, setActiveSection] = useState<AppSection>("home");
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState("");
@@ -636,6 +661,7 @@ function App() {
   const [selectedPlanningDay, setSelectedPlanningDay] = useState<SelectedPlanningDay | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [isStartDialogOpen, setIsStartDialogOpen] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [timeViewMode, setTimeViewMode] = useState<TimeViewMode>("me");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
   const [absenceType, setAbsenceType] = useState<"urlaub" | "krank">("urlaub");
@@ -666,6 +692,8 @@ function App() {
   const [pendingProjectPhoto, setPendingProjectPhoto] = useState<PendingProjectPhoto | null>(null);
   const beforePhotoInputRef = useRef<HTMLInputElement>(null);
   const afterPhotoInputRef = useRef<HTMLInputElement>(null);
+  const isProjectLogbookLoadingRef = useRef(false);
+  const hasProjectLogbookLoadedRef = useRef(false);
 
   const activeUser = useMemo(() => {
     return data.users.find((user) => user.id === selectedUserId) ?? data.users[0];
@@ -722,7 +750,7 @@ function App() {
       }
     };
 
-      const [tasks, contacts, users, projects, planning, absences, timeEntries, projectLogbookEntries] = await Promise.all([
+      const [tasks, contacts, users, projects, planning, absences, timeEntries] = await Promise.all([
       safeFetch<Task[]>("/api/tasks", []),
       safeFetch<Contact[]>("/api/contacts", []),
       safeFetch<User[]>("/api/users", []),
@@ -730,7 +758,6 @@ function App() {
       safeFetch<PlanningEntry[]>("/api/planning-entries", []),
       safeFetch<Absence[]>("/api/absences", []),
       safeFetch<ProjectTimeEntry[]>("/api/project-time-entries", []),
-      safeFetch<ProjectLogbookEntry[]>("/api/project-logbook-entries", []),
     ]);
 
     const nextUserId = userId || users[0]?.id || "";
@@ -741,28 +768,108 @@ function App() {
         )
       : [];
 
-    setData({ tasks, contacts, users, projects, planning, absences, timeEntries, projectLogbookEntries, notifications });
+    setData((current) => ({
+      ...current,
+      tasks,
+      contacts,
+      users,
+      projects,
+      planning,
+      absences,
+      timeEntries,
+      notifications,
+    }));
     setSelectedUserId(nextUserId);
     await loadStampSession(nextUserId);
     setError(errors.join(" | "));
     setState("ready");
   }
 
+  async function submitLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = loginEmail.trim();
+    if (!email || !loginPassword) {
+      setLoginError("Bitte E-Mail und Passwort eingeben.");
+      return;
+    }
+
+    setIsLoggingIn(true);
+    setLoginError("");
+    try {
+      const response = await fetch(endpoint("/api/auth/login"), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password: loginPassword }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error ?? "E-Mail oder Passwort ist nicht korrekt.");
+      }
+      const user = (await response.json()) as LoginUser;
+      const serializedUser = JSON.stringify(user);
+      if (rememberLogin) {
+        localStorage.setItem(loginStorageKey, serializedUser);
+        sessionStorage.removeItem(loginSessionStorageKey);
+      } else {
+        sessionStorage.setItem(loginSessionStorageKey, serializedUser);
+        localStorage.removeItem(loginStorageKey);
+      }
+      setLoginUser(user);
+      setLoginPassword("");
+      await loadData(user.id);
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Login ist fehlgeschlagen.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem(loginStorageKey);
+    sessionStorage.removeItem(loginSessionStorageKey);
+    setIsLogoutDialogOpen(false);
+    setLoginUser(null);
+    setSelectedUserId("");
+    setSession(null);
+    setData(emptyData);
+    setState("idle");
+    setActiveSection("home");
+  }
+
   async function refreshPlanningData() {
     try {
-      const [planning, projectLogbookEntries] = await Promise.all([
-        fetchJson<PlanningEntry[]>("/api/planning-entries"),
-        fetchJson<ProjectLogbookEntry[]>("/api/project-logbook-entries"),
-      ]);
-      setData((current) => ({ ...current, planning, projectLogbookEntries }));
+      const planning = await fetchJson<PlanningEntry[]>("/api/planning-entries");
+      setData((current) => ({ ...current, planning }));
       setError("");
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Planung konnte nicht aktualisiert werden.");
     }
   }
 
+  async function loadProjectLogbookEntries() {
+    if (hasProjectLogbookLoadedRef.current) return data.projectLogbookEntries;
+    if (isProjectLogbookLoadingRef.current) return data.projectLogbookEntries;
+    isProjectLogbookLoadingRef.current = true;
+    try {
+      const entries = await fetchJson<ProjectLogbookEntry[]>("/api/project-logbook-entries");
+      hasProjectLogbookLoadedRef.current = true;
+      setData((current) => ({ ...current, projectLogbookEntries: entries }));
+      setError("");
+      return entries;
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Projektlogbuch konnte nicht geladen werden.");
+      return data.projectLogbookEntries;
+    } finally {
+      isProjectLogbookLoadingRef.current = false;
+    }
+  }
+
   useEffect(() => {
-    loadData();
+    if (!loginUser) return;
+    loadData(loginUser.id);
   }, []);
 
   useEffect(() => {
@@ -1352,11 +1459,11 @@ function App() {
     };
   }
 
-  function getProjectPhotoCounts(projectId?: string) {
+  function getProjectPhotoCounts(projectId?: string, entries = data.projectLogbookEntries) {
     if (!projectId) return { before: 0, after: 0 };
 
     const countImages = (category: "Vorherbilder" | "Nachherbilder") =>
-      data.projectLogbookEntries
+      entries
         .filter((entry) => entry.projectId === projectId && entry.title === `Bilder: ${category}`)
         .reduce(
           (sum, entry) => sum + entry.attachments.filter((attachment) => attachment.type === "Bild").length,
@@ -1922,9 +2029,10 @@ function App() {
     });
   }
 
-  function openProjectPhotoCamera(category: ProjectPhotoCategory, projectId = session?.projectId ?? "") {
+  async function openProjectPhotoCamera(category: ProjectPhotoCategory, projectId = session?.projectId ?? "") {
     if (!projectId) return;
-    const counts = getProjectPhotoCounts(projectId);
+    const entries = await loadProjectLogbookEntries();
+    const counts = getProjectPhotoCounts(projectId, entries);
     const count = category === "Vorherbilder" ? counts.before : counts.after;
     if (count >= 3) {
       setPhotoUploadError(`${category} sind bereits vollständig: maximal 3 Bilder.`);
@@ -1968,7 +2076,8 @@ function App() {
 
   async function uploadProjectPhoto(category: ProjectPhotoCategory, file?: File, projectId = session?.projectId ?? "") {
     if (!file || !projectId) return false;
-    const counts = getProjectPhotoCounts(projectId);
+    const entries = hasProjectLogbookLoadedRef.current ? data.projectLogbookEntries : await loadProjectLogbookEntries();
+    const counts = getProjectPhotoCounts(projectId, entries);
     const currentCount = category === "Vorherbilder" ? counts.before : counts.after;
     if (currentCount >= 3) {
       setPhotoUploadError(`${category} sind bereits vollständig: maximal 3 Bilder.`);
@@ -2380,13 +2489,13 @@ function App() {
                 label="Vorher"
                 count={activeProjectPhotoCounts.before}
                 disabled={uploadingPhotoCategory !== "" || activeProjectPhotoCounts.before >= 3}
-                onClick={() => openProjectPhotoCamera("Vorherbilder")}
+                onClick={() => void openProjectPhotoCamera("Vorherbilder")}
               />
               <PhotoCaptureButton
                 label="Nachher"
                 count={activeProjectPhotoCounts.after}
                 disabled={uploadingPhotoCategory !== "" || activeProjectPhotoCounts.after >= 3}
-                onClick={() => openProjectPhotoCamera("Nachherbilder")}
+                onClick={() => void openProjectPhotoCamera("Nachherbilder")}
               />
             </div>
           )}
@@ -2519,6 +2628,57 @@ function App() {
   const canShowNextStampStep =
     completionAction === "switch" && (!session || session.mode !== "project" || Boolean(workCompletionStatus));
 
+  if (!loginUser) {
+    return (
+      <main className="loginShell">
+        <section className="loginPanel" aria-label="WorkPilot360 Login">
+          <img src="/workpilot360-logo-wide.png" alt="WorkPilot360" />
+          <div>
+            <p className="eyebrow">WorkPilot360 PWA</p>
+            <h1>Anmelden</h1>
+          </div>
+          <form className="loginForm" onSubmit={submitLogin}>
+            <label>
+              E-Mail
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
+                autoComplete="email"
+                placeholder="name@firma.de"
+              />
+            </label>
+            <label>
+              Passwort
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="Passwort"
+              />
+            </label>
+            <label className="rememberLogin">
+              <input
+                type="checkbox"
+                checked={rememberLogin}
+                onChange={(event) => setRememberLogin(event.target.checked)}
+              />
+              <span>
+                Angemeldet bleiben
+                <small>auf diesem Gerät</small>
+              </span>
+            </label>
+            {loginError && <div className="inlineError">{loginError}</div>}
+            <button type="submit" disabled={isLoggingIn}>
+              {isLoggingIn ? "Anmeldung läuft..." : "Anmelden"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="appShell">
       <aside className="sidebar">
@@ -2563,19 +2723,24 @@ function App() {
                 />
               </label>
             )}
-            <select
-              value={selectedUserId}
-              onChange={(event) => setSelectedUserId(event.target.value)}
-              aria-label="Mitarbeiter"
-            >
-              {data.users.map((user) => (
-                <option value={user.id} key={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-            <button className="iconButton" type="button" onClick={() => loadData(selectedUserId)} title="Aktualisieren">
+            <div className="currentUserBadge" title={loginUser.email}>
+              {activeUser?.profileImageDataUrl ? (
+                <img src={activeUser.profileImageDataUrl} alt="" />
+              ) : (
+                <UserRound size={16} />
+              )}
+              <span>{activeUser?.name ?? loginUser.name}</span>
+            </div>
+            <button className="iconButton" type="button" onClick={() => loadData(loginUser.id)} title="Aktualisieren">
               <RefreshCcw size={18} />
+            </button>
+            <button
+              className="iconButton logoutButton"
+              type="button"
+              onClick={() => setIsLogoutDialogOpen(true)}
+              title="Abmelden"
+            >
+              <Power size={19} />
             </button>
           </div>
         </header>
@@ -2711,7 +2876,7 @@ function App() {
                             <button
                               type="button"
                               className={`homePhotoPill ${photoCounts.before > 0 ? "ok" : "missing"}`}
-                              onClick={() => openProjectPhotoCamera("Vorherbilder", entry.projectId)}
+                              onClick={() => void openProjectPhotoCamera("Vorherbilder", entry.projectId)}
                               disabled={uploadingPhotoCategory !== "" || photoCounts.before >= 3}
                               title="Vorherbild aufnehmen"
                             >
@@ -2720,7 +2885,7 @@ function App() {
                             <button
                               type="button"
                               className={`homePhotoPill ${photoCounts.after > 0 ? "ok" : "missing"}`}
-                              onClick={() => openProjectPhotoCamera("Nachherbilder", entry.projectId)}
+                              onClick={() => void openProjectPhotoCamera("Nachherbilder", entry.projectId)}
                               disabled={uploadingPhotoCategory !== "" || photoCounts.after >= 3}
                               title="Nachherbild aufnehmen"
                             >
@@ -4094,6 +4259,33 @@ function App() {
               </button>
               <button type="button" className="primaryDialogButton" onClick={startStampSession}>
                 Starten
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {isLogoutDialogOpen && (
+        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Abmelden bestätigen">
+          <section className="confirmDialog">
+            <header>
+              <div className="confirmDialogIcon">
+                <Power size={30} />
+              </div>
+              <div>
+                <p className="eyebrow">Abmelden</p>
+                <h2>Willst du dich wirklich abmelden?</h2>
+              </div>
+            </header>
+            <p>
+              Du wirst auf diesem Gerät abgemeldet und musst dich danach erneut mit E-Mail und Passwort anmelden.
+            </p>
+            <footer>
+              <button type="button" className="secondaryDialogButton" onClick={() => setIsLogoutDialogOpen(false)}>
+                Nein
+              </button>
+              <button type="button" className="dangerDialogButton" onClick={logout}>
+                Ja, abmelden
               </button>
             </footer>
           </section>
