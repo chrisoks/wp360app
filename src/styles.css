@@ -3124,6 +3124,95 @@ button.projectCard:hover {
   margin-top: 12px;
 }
 
+.projectPhotoGallery {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.projectPhotoGallery section {
+  min-width: 0;
+  border: 1px solid #dce7ef;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 10px;
+}
+
+.projectPhotoGalleryHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.projectPhotoGalleryHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.projectPhotoGalleryHeader button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: #10596b;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 950;
+  padding: 0 10px;
+}
+
+.projectPhotoGalleryHeader button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.projectPhotoThumbGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.projectPhotoThumbGrid a {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  color: #172033;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.projectPhotoThumbGrid img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid #cfdae5;
+  object-fit: cover;
+  background: #eef3f7;
+}
+
+.projectPhotoThumbGrid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectPhotoEmpty {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: center;
+}
+
 .personalHero {
   grid-column: 1 / -1;
   min-height: 112px;
@@ -3979,6 +4068,14 @@ button.projectCard:hover {
 
   .projectDetailHeader button {
     width: 100%;
+  }
+
+  .projectPhotoGallery {
+    grid-template-columns: 1fr;
+  }
+
+  .projectPhotoThumbGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .personalHero {

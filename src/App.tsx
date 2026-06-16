@@ -137,6 +137,10 @@ type Project = {
   title: string;
   customer?: string;
   status?: string;
+  description?: string;
+  trade?: string;
+  billingInterval?: string;
+  projectKind?: string;
   responsibleName?: string;
   projectRuntimeUntil?: string;
   volume?: string;
@@ -207,10 +211,12 @@ type LogbookAttachment = {
 type ProjectLogbookEntry = {
   id: string;
   projectId: string;
+  date?: string;
   title: string;
   text: string;
   author?: string;
   attachments: LogbookAttachment[];
+  projectMonth?: string;
 };
 
 type StampSession = {
@@ -594,7 +600,7 @@ async function compressImageForUpload(file: File) {
 async function readImageAttachment(file: File, name: string): Promise<LogbookAttachment> {
   const image = await compressImageForUpload(file);
   return {
-    name,
+    name: name.toLowerCase().endsWith(".jpg") ? name : `${name}.jpg`,
     type: "Bild",
     mimeType: image.mimeType,
     size: image.size,
@@ -824,6 +830,9 @@ function App() {
     }));
     setSelectedUserId(nextUserId);
     await loadStampSession(nextUserId);
+    if (hasProjectLogbookLoadedRef.current) {
+      await loadProjectLogbookEntries(true);
+    }
     setError(errors.join(" | "));
     setState("ready");
   }
@@ -892,8 +901,8 @@ function App() {
     }
   }
 
-  async function loadProjectLogbookEntries() {
-    if (hasProjectLogbookLoadedRef.current) return data.projectLogbookEntries;
+  async function loadProjectLogbookEntries(force = false) {
+    if (!force && hasProjectLogbookLoadedRef.current) return data.projectLogbookEntries;
     if (isProjectLogbookLoadingRef.current) return data.projectLogbookEntries;
     isProjectLogbookLoadingRef.current = true;
     try {
@@ -962,6 +971,11 @@ function App() {
     const intervalId = window.setInterval(() => setTimerNow(Date.now()), 15_000);
     return () => window.clearInterval(intervalId);
   }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== "projects" || !selectedProjectId) return;
+    void loadProjectLogbookEntries();
+  }, [activeSection, selectedProjectId]);
 
   useEffect(() => {
     return () => {
@@ -1502,12 +1516,43 @@ function App() {
     };
   }
 
+  function isRecurringProject(project?: Project) {
+    if (!project) return false;
+    const directKind = normalizedText(project.projectKind);
+    if (directKind.includes("dauer")) return true;
+    const searchableText = [
+      project.title,
+      project.status,
+      project.description,
+      project.trade,
+      project.billingInterval,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return ["monatlich", "jährlich", "jaehrlich", "quartal", "dauer"].some((token) =>
+      searchableText.includes(token)
+    );
+  }
+
+  function getProjectLogbookMonth(projectId: string) {
+    const project = data.projects.find((item) => item.id === projectId);
+    if (!isRecurringProject(project)) return "";
+
+    const plannedEntry = data.planning.find(
+      (entry) => entry.projectId === projectId && normalizeDateKeyValue(entry.date) === dateKey()
+    );
+    return normalizeDateKeyValue(plannedEntry?.date).slice(0, 7) || monthKey();
+  }
+
   function getProjectPhotoCounts(projectId?: string, entries = data.projectLogbookEntries) {
     if (!projectId) return { before: 0, after: 0 };
+    const projectMonth = getProjectLogbookMonth(projectId);
 
     const countImages = (category: "Vorherbilder" | "Nachherbilder") =>
       entries
         .filter((entry) => entry.projectId === projectId && entry.title === `Bilder: ${category}`)
+        .filter((entry) => !projectMonth || entry.projectMonth === projectMonth)
         .reduce(
           (sum, entry) => sum + entry.attachments.filter((attachment) => attachment.type === "Bild").length,
           0
@@ -1517,6 +1562,23 @@ function App() {
       before: countImages("Vorherbilder"),
       after: countImages("Nachherbilder"),
     };
+  }
+
+  function getProjectPhotoAttachments(projectId: string, category: "Vorherbilder" | "Nachherbilder") {
+    const projectMonth = getProjectLogbookMonth(projectId);
+    return data.projectLogbookEntries
+      .filter((entry) => entry.projectId === projectId && entry.title === `Bilder: ${category}`)
+      .filter((entry) => !projectMonth || entry.projectMonth === projectMonth)
+      .flatMap((entry) =>
+        entry.attachments
+          .filter((attachment) => attachment.type === "Bild" && attachment.dataUrl)
+          .map((attachment, attachmentIndex) => ({
+            ...attachment,
+            entryId: entry.id,
+            attachmentIndex,
+            date: entry.date,
+          }))
+      );
   }
 
   function planningStampComment(entry: PlanningEntry) {
@@ -2132,6 +2194,7 @@ function App() {
     try {
       const label = category === "Vorherbilder" ? "Vorherbild" : "Nachherbild";
       const attachment = await readImageAttachment(file, `${label} ${currentCount + 1}`);
+      const projectMonth = getProjectLogbookMonth(projectId);
       const savedEntry = await fetchJson<ProjectLogbookEntry>("/api/project-logbook-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2140,9 +2203,11 @@ function App() {
           title: `Bilder: ${category}`,
           text: `${category} per PWA hochgeladen`,
           author: activeUser?.name || session?.employee || "WorkPilot360 PWA",
+          authorUserId: activeUser?.id || session?.userId || "",
           colleague: "",
           visibleFor: ["Geschaeftsfuehrer", "Vertriebler", "Niederlassungsleiter", "Monteur", "Buchhaltung"],
           attachments: [attachment],
+          projectMonth,
         }),
       });
       setData((current) => ({
@@ -3753,6 +3818,45 @@ function App() {
                       )}
                     </strong>
                   </div>
+                </div>
+                <div className="projectPhotoGallery">
+                  {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
+                    const images = getProjectPhotoAttachments(selectedProject.id, category);
+                    return (
+                      <section key={category}>
+                        <div className="projectPhotoGalleryHeader">
+                          <div>
+                            <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
+                            <h3>{images.length} Bilder</h3>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void openProjectPhotoCamera(category, selectedProject.id)}
+                            disabled={uploadingPhotoCategory !== "" || images.length >= 3}
+                          >
+                            Aufnehmen
+                          </button>
+                        </div>
+                        {images.length ? (
+                          <div className="projectPhotoThumbGrid">
+                            {images.map((image) => (
+                              <a
+                                href={image.dataUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
+                              >
+                                <img src={image.dataUrl} alt={image.name} />
+                                <span>{image.name}</span>
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
