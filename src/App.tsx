@@ -2159,6 +2159,7 @@ function App() {
       return;
     }
     setPhotoUploadError("");
+    setPhotoGalleryProjectId("");
     setPhotoCaptureTarget({ category, projectId });
     if (category === "Vorherbilder") beforePhotoInputRef.current?.click();
     else afterPhotoInputRef.current?.click();
@@ -2168,6 +2169,7 @@ function App() {
     if (!file || !photoCaptureTarget) return;
     const previewUrl = URL.createObjectURL(file);
     if (pendingProjectPhoto?.previewUrl) URL.revokeObjectURL(pendingProjectPhoto.previewUrl);
+    setPhotoGalleryProjectId("");
     setPendingProjectPhoto({
       category,
       file,
@@ -2229,6 +2231,7 @@ function App() {
         ...current,
         projectLogbookEntries: [savedEntry, ...current.projectLogbookEntries],
       }));
+      setPhotoGalleryProjectId(projectId);
       return true;
     } catch (uploadError) {
       const message = uploadError instanceof Error ? uploadError.message : "Bild konnte nicht gespeichert werden.";
