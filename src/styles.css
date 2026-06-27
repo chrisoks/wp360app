@@ -5730,6 +5730,14 @@ button.projectCard:hover {
     grid-template-columns: 1fr;
   }
 
+  .planningApprovalDialog .planningRescheduleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planningApprovalDialog .planningRescheduleGrid label:first-child {
+    grid-column: 1 / -1;
+  }
+
   .projectPhotoDialog > header {
     align-items: center;
   }
@@ -6185,5 +6193,15 @@ button.projectCard:hover {
 
   .timePeriodSwitch {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .planningApprovalDialog .planningRescheduleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .planningApprovalDialog .planningRescheduleGrid label:first-child {
+    grid-column: auto;
   }
 }
