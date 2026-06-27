@@ -834,6 +834,12 @@ function App() {
   const [rescheduleEndTime, setRescheduleEndTime] = useState("");
   const [rescheduleError, setRescheduleError] = useState("");
   const [isReschedulingPlanning, setIsReschedulingPlanning] = useState(false);
+  const [approvalPlanningEntryId, setApprovalPlanningEntryId] = useState("");
+  const [approvalDate, setApprovalDate] = useState("");
+  const [approvalStartTime, setApprovalStartTime] = useState("");
+  const [approvalEndTime, setApprovalEndTime] = useState("");
+  const [approvalError, setApprovalError] = useState("");
+  const [isApprovingPlanning, setIsApprovingPlanning] = useState(false);
   const [selectedAppointmentDayKey, setSelectedAppointmentDayKey] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [isStartDialogOpen, setIsStartDialogOpen] = useState(false);
@@ -1786,6 +1792,15 @@ function App() {
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
   const photoGalleryProject = data.projects.find((project) => project.id === photoGalleryProjectId);
   const reschedulePlanningEntry = data.planning.find((entry) => entry.id === reschedulePlanningEntryId) ?? null;
+  const approvalPlanningEntry = data.planning.find((entry) => entry.id === approvalPlanningEntryId) ?? null;
+  const approvalConflicts = approvalPlanningEntry
+    ? data.planning.filter((entry) => {
+        if (entry.id === approvalPlanningEntry.id || entry.deletedAt) return false;
+        if (entry.userId !== approvalPlanningEntry.userId && entry.employeeName !== approvalPlanningEntry.employeeName) return false;
+        if (normalizeDateKeyValue(entry.date) !== normalizeDateKeyValue(approvalDate)) return false;
+        return timeRangesOverlap(approvalStartTime, approvalEndTime, entry.startTime, entry.endTime);
+      })
+    : [];
   const activeProjectPhotoCounts = useMemo(() => {
     if (!session || session.mode !== "project") return { before: 0, after: 0 };
     return getProjectPhotoCounts(session.projectId);
@@ -3221,6 +3236,127 @@ function App() {
     if (isReschedulingPlanning) return;
     setReschedulePlanningEntryId("");
     setRescheduleError("");
+  }
+
+  function isPlanningRequest(entry: PlanningEntry) {
+    return entry.approvalStatus === "requested";
+  }
+
+  function openPlanningApproval(entry: PlanningEntry) {
+    if (!isPlanningRequest(entry)) {
+      openPlanningReschedule(entry);
+      return;
+    }
+    if (!canReschedulePlanningEntry(entry)) {
+      setApprovalError("Du darfst nur Terminwünsche deiner Planungsgruppe freigeben.");
+      return;
+    }
+    setApprovalPlanningEntryId(entry.id);
+    setApprovalDate(normalizeDateKeyValue(entry.date));
+    setApprovalStartTime(entry.startTime);
+    setApprovalEndTime(entry.endTime);
+    setApprovalError("");
+  }
+
+  function closePlanningApproval() {
+    if (isApprovingPlanning) return;
+    setApprovalPlanningEntryId("");
+    setApprovalError("");
+  }
+
+  async function savePlanningApproval(options: { approve: boolean; useEditedTime?: boolean }) {
+    if (!approvalPlanningEntry || !activeUser) return;
+    if (!canReschedulePlanningEntry(approvalPlanningEntry)) {
+      setApprovalError("Du darfst nur Terminwünsche deiner Planungsgruppe freigeben.");
+      return;
+    }
+
+    if (!options.approve) {
+      if (!window.confirm("Terminwunsch wirklich ablehnen? Der Wunsch wird aus der Planung entfernt.")) return;
+      setIsApprovingPlanning(true);
+      setApprovalError("");
+      try {
+        const params = new URLSearchParams({ id: approvalPlanningEntry.id, actorUserId: activeUser.id });
+        const response = await fetch(endpoint(`/api/planning-entries?${params.toString()}`), {
+          method: "DELETE",
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.error ?? "Terminwunsch konnte nicht abgelehnt werden.");
+        }
+        setData((current) => ({
+          ...current,
+          planning: current.planning.filter((entry) => entry.id !== approvalPlanningEntry.id),
+        }));
+        setApprovalPlanningEntryId("");
+        await refreshPlanningData();
+      } catch (deleteError) {
+        setApprovalError(deleteError instanceof Error ? deleteError.message : "Terminwunsch konnte nicht abgelehnt werden.");
+      } finally {
+        setIsApprovingPlanning(false);
+      }
+      return;
+    }
+
+    const nextDate = options.useEditedTime ? approvalDate : normalizeDateKeyValue(approvalPlanningEntry.date);
+    const nextStartTime = options.useEditedTime ? approvalStartTime : approvalPlanningEntry.startTime;
+    const nextEndTime = options.useEditedTime ? approvalEndTime : approvalPlanningEntry.endTime;
+
+    if (!nextDate || !nextStartTime || !nextEndTime) {
+      setApprovalError("Bitte Datum, Startzeit und Endzeit ausfüllen.");
+      return;
+    }
+    if (minutesFromTime(nextStartTime) >= minutesFromTime(nextEndTime)) {
+      setApprovalError("Die Endzeit muss nach der Startzeit liegen.");
+      return;
+    }
+    if (approvalConflicts.length > 0 && !window.confirm("Es gibt eine Überschneidung mit einem anderen Termin. Trotzdem freigeben?")) {
+      return;
+    }
+
+    const durationMinutes = Math.max(0, minutesFromTime(nextEndTime) - minutesFromTime(nextStartTime));
+    setIsApprovingPlanning(true);
+    setApprovalError("");
+    try {
+      const response = await fetch(endpoint("/api/planning-entries"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...approvalPlanningEntry,
+          actorUserId: activeUser.id,
+          date: nextDate,
+          startTime: nextStartTime,
+          endTime: nextEndTime,
+          durationMinutes,
+          approvalStatus: "confirmed",
+          approvedByUserId: activeUser.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error ?? "Terminwunsch konnte nicht freigegeben werden.");
+      }
+
+      const updatedEntry = (await response.json()) as PlanningEntry;
+      setData((current) => ({
+        ...current,
+        planning: current.planning
+          .map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry))
+          .sort((a, b) => `${normalizeDateKeyValue(a.date)}${a.startTime}`.localeCompare(`${normalizeDateKeyValue(b.date)}${b.startTime}`)),
+      }));
+      setSelectedPlanningDay((current) =>
+        current && current.dateKey === normalizeDateKeyValue(approvalPlanningEntry.date)
+          ? { ...current, dateKey: normalizeDateKeyValue(updatedEntry.date) }
+          : current
+      );
+      setApprovalPlanningEntryId("");
+      await refreshPlanningData();
+    } catch (saveError) {
+      setApprovalError(saveError instanceof Error ? saveError.message : "Terminwunsch konnte nicht freigegeben werden.");
+    } finally {
+      setIsApprovingPlanning(false);
+    }
   }
 
   async function savePlanningReschedule() {
@@ -5170,18 +5306,19 @@ function App() {
                                   const left = ((startMinutes - 360) / 840) * 100;
                                   const width = ((endMinutes - startMinutes) / 840) * 100;
                                   const isDone = entry.approvalStatus === "done" || entry.approvalStatus === "completed";
+                                  const isRequest = isPlanningRequest(entry);
 
                                   return (
                                     <button
-                                      className={`mobilePlannerBar ${isDone ? "done" : ""}`}
+                                      className={`mobilePlannerBar ${isDone ? "done" : ""} ${isRequest ? "requested" : ""}`}
                                       key={entry.id}
                                       type="button"
                                       style={{ left: `${left}%`, width: `${Math.max(7, width)}%` }}
-                                      onClick={() => openPlanningReschedule(entry)}
+                                      onClick={() => openPlanningApproval(entry)}
                                       disabled={!canReschedulePlanningEntry(entry)}
                                       title={`${entry.startTime}-${entry.endTime} ${entry.title}`}
                                     >
-                                      <strong>{entry.title}</strong>
+                                      <strong>{isRequest ? "Terminwunsch" : entry.title}</strong>
                                       <span>{entry.startTime}-{entry.endTime}</span>
                                     </button>
                                   );
@@ -5226,7 +5363,7 @@ function App() {
                                   className="mobileWorkerEntry"
                                   key={entry.id}
                                   type="button"
-                                  onClick={() => openPlanningReschedule(entry)}
+                                  onClick={() => openPlanningApproval(entry)}
                                   disabled={!canReschedulePlanningEntry(entry)}
                                 >
                                   <time>
@@ -5234,10 +5371,12 @@ function App() {
                                     <span>{entry.endTime}</span>
                                   </time>
                                   <div>
-                                    <strong>{entry.title}</strong>
+                                    <strong>{isPlanningRequest(entry) ? `Terminwunsch: ${entry.title}` : entry.title}</strong>
                                     <span>{entry.projectLabel || entry.customer || entry.groupName}</span>
                                   </div>
-                                  <small className={`badge ${statusClass(entry.approvalStatus)}`}>Umplanen</small>
+                                  <small className={`badge ${statusClass(entry.approvalStatus)}`}>
+                                    {isPlanningRequest(entry) ? "Prüfen" : "Umplanen"}
+                                  </small>
                                 </button>
                               ))}
                               {entries.length === 0 && <Empty text="Keine Termine für diesen Mitarbeiter." />}
@@ -6201,6 +6340,68 @@ function App() {
               </button>
               <button className="primaryDialogButton" type="button" onClick={() => void savePlanningReschedule()} disabled={isReschedulingPlanning}>
                 {isReschedulingPlanning ? "Speichern..." : "Umplanen"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {approvalPlanningEntry && (
+        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Terminwunsch prüfen">
+          <section className="planningRescheduleDialog planningApprovalDialog">
+            <header>
+              <div>
+                <p className="eyebrow">Terminwunsch prüfen</p>
+                <h2>{approvalPlanningEntry.title}</h2>
+                <span>{approvalPlanningEntry.employeeName || "Nicht zugeordnet"}</span>
+              </div>
+              <button type="button" onClick={closePlanningApproval} aria-label="Freigabe schließen">
+                ×
+              </button>
+            </header>
+            <div className="planningRescheduleInfo">
+              <span>{approvalPlanningEntry.projectLabel || approvalPlanningEntry.customer || approvalPlanningEntry.groupName}</span>
+              <small>
+                Angefragt von {approvalPlanningEntry.requestedByName || "unbekannt"} · aktuell{" "}
+                {formatFullDate(approvalPlanningEntry.date)}, {approvalPlanningEntry.startTime}-{approvalPlanningEntry.endTime}
+              </small>
+            </div>
+            {approvalConflicts.length > 0 && (
+              <div className="planningConflictWarning">
+                <strong>Konflikt möglich</strong>
+                <span>
+                  Überschneidet sich mit {approvalConflicts.length} Termin{approvalConflicts.length === 1 ? "" : "en"} für{" "}
+                  {approvalPlanningEntry.employeeName || "diesen Mitarbeiter"}.
+                </span>
+              </div>
+            )}
+            <div className="planningRescheduleGrid">
+              <label>
+                Datum
+                <input type="date" value={approvalDate} onChange={(event) => setApprovalDate(event.target.value)} />
+              </label>
+              <label>
+                Start
+                <input type="time" value={approvalStartTime} onChange={(event) => setApprovalStartTime(event.target.value)} />
+              </label>
+              <label>
+                Ende
+                <input type="time" value={approvalEndTime} onChange={(event) => setApprovalEndTime(event.target.value)} />
+              </label>
+            </div>
+            {approvalError && <div className="inlineError">{approvalError}</div>}
+            <footer className="planningApprovalActions">
+              <button type="button" onClick={closePlanningApproval} disabled={isApprovingPlanning}>
+                Abbrechen
+              </button>
+              <button type="button" className="dangerDialogButton" onClick={() => void savePlanningApproval({ approve: false })} disabled={isApprovingPlanning}>
+                Ablehnen
+              </button>
+              <button type="button" onClick={() => void savePlanningApproval({ approve: true, useEditedTime: true })} disabled={isApprovingPlanning}>
+                Umplanen & freigeben
+              </button>
+              <button className="primaryDialogButton" type="button" onClick={() => void savePlanningApproval({ approve: true })} disabled={isApprovingPlanning}>
+                {isApprovingPlanning ? "Speichern..." : "Freigeben"}
               </button>
             </footer>
           </section>

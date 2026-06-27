@@ -2560,6 +2560,15 @@ button.planningBar:hover {
     0 10px 22px rgba(22, 163, 74, 0.2);
 }
 
+.mobilePlannerBar.requested {
+  border-color: #fbbf24;
+  background: #f59e0b;
+  color: #172033;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.28),
+    0 10px 22px rgba(245, 158, 11, 0.24);
+}
+
 .mobilePlannerBar strong,
 .mobilePlannerBar span {
   display: block;
@@ -4700,10 +4709,39 @@ button.projectCard:hover {
   padding: 0 10px;
 }
 
+.planningConflictWarning {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 10px;
+}
+
+.planningConflictWarning strong,
+.planningConflictWarning span {
+  display: block;
+}
+
+.planningConflictWarning strong {
+  font-size: 0.84rem;
+  font-weight: 950;
+}
+
+.planningConflictWarning span {
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
 .planningRescheduleDialog footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.planningRescheduleDialog footer.planningApprovalActions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .planningRescheduleDialog footer button {
@@ -4713,6 +4751,12 @@ button.projectCard:hover {
   background: #ffffff;
   color: #172033;
   font-weight: 900;
+}
+
+.planningRescheduleDialog footer .dangerDialogButton {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
 }
 
 .confirmDialog header {
