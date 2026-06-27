@@ -552,7 +552,7 @@ function minutesFromTime(value: string) {
   return hours * 60 + minutes;
 }
 
-function urlBase64ToArrayBuffer(value: string) {
+function urlBase64ToUint8Array(value: string) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
@@ -560,7 +560,7 @@ function urlBase64ToArrayBuffer(value: string) {
   for (let index = 0; index < raw.length; index += 1) {
     output[index] = raw.charCodeAt(index);
   }
-  return output.buffer.slice(0);
+  return output;
 }
 
 function dateTimeMs(dayKey: string, time: string) {
@@ -844,6 +844,7 @@ function App() {
   const [notificationActionError, setNotificationActionError] = useState("");
   const [pushStatus, setPushStatus] = useState<PushUiStatus>("idle");
   const [pushMessage, setPushMessage] = useState("");
+  const [pushDebugInfo, setPushDebugInfo] = useState("");
   const [isPushSaving, setIsPushSaving] = useState(false);
   const [timeViewMode, setTimeViewMode] = useState<TimeViewMode>("me");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
@@ -1134,6 +1135,7 @@ function App() {
 
     setIsPushSaving(true);
     setPushMessage("");
+    setPushDebugInfo("");
 
     try {
       const permission =
@@ -1150,6 +1152,8 @@ function App() {
       const { publicKey } = await fetchJson<PushPublicKeyResponse>("/api/push/public-key");
       const normalizedPublicKey = publicKey.trim();
       if (!normalizedPublicKey) throw new Error("Push-Schlüssel fehlt.");
+      const publicKeyBytes = urlBase64ToUint8Array(normalizedPublicKey);
+      const debugPrefix = `Push-Diagnose v4: key=${normalizedPublicKey.length} Zeichen, bytes=${publicKeyBytes.byteLength}, first=${publicKeyBytes[0] ?? "?"}`;
 
       const registration = await navigator.serviceWorker.ready;
       const existingSubscription = await registration.pushManager.getSubscription();
@@ -1158,14 +1162,25 @@ function App() {
         try {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: normalizedPublicKey,
-          } as PushSubscriptionOptionsInit);
-        } catch (stringKeyError) {
+            applicationServerKey: publicKeyBytes.buffer.slice(
+              publicKeyBytes.byteOffset,
+              publicKeyBytes.byteOffset + publicKeyBytes.byteLength
+            ),
+          });
+          setPushDebugInfo(`${debugPrefix}, weg=ArrayBuffer`);
+        } catch (arrayBufferKeyError) {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToArrayBuffer(normalizedPublicKey),
-          });
+            applicationServerKey: publicKeyBytes,
+          } as PushSubscriptionOptionsInit);
+          setPushDebugInfo(
+            `${debugPrefix}, weg=Uint8Array, erster Fehler=${
+              arrayBufferKeyError instanceof Error ? arrayBufferKeyError.message : "unbekannt"
+            }`
+          );
         }
+      } else {
+        setPushDebugInfo(`${debugPrefix}, weg=existing`);
       }
 
       await fetchJson("/api/push/subscriptions", {
@@ -1189,6 +1204,7 @@ function App() {
             ? pushError.message
             : "Push konnte nicht aktiviert werden."
       );
+      setPushDebugInfo((current) => current || "Push-Diagnose v4: Aktivierung vor Diagnose abgebrochen.");
     } finally {
       setIsPushSaving(false);
     }
@@ -6095,6 +6111,7 @@ function App() {
                         : "Für Terminänderungen direkt benachrichtigt werden."}
                 </span>
                 {pushMessage && <small>{pushMessage}</small>}
+                {pushDebugInfo && <small>{pushDebugInfo}</small>}
               </div>
               {pushStatus !== "enabled" && pushStatus !== "unsupported" && (
                 <button type="button" onClick={() => void enablePushNotifications()} disabled={isPushSaving}>
