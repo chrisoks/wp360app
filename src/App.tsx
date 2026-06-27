@@ -1153,7 +1153,8 @@ function App() {
       const normalizedPublicKey = publicKey.trim();
       if (!normalizedPublicKey) throw new Error("Push-Schlüssel fehlt.");
       const publicKeyBytes = urlBase64ToUint8Array(normalizedPublicKey);
-      const debugPrefix = `Push-Diagnose v4: key=${normalizedPublicKey.length} Zeichen, bytes=${publicKeyBytes.byteLength}, first=${publicKeyBytes[0] ?? "?"}`;
+      const debugPrefix = `Push-Diagnose v5: key=${normalizedPublicKey.length} Zeichen, bytes=${publicKeyBytes.byteLength}, first=${publicKeyBytes[0] ?? "?"}, last=${publicKeyBytes[publicKeyBytes.byteLength - 1] ?? "?"}`;
+      setPushDebugInfo(`${debugPrefix}, weg=vor subscribe`);
 
       const registration = await navigator.serviceWorker.ready;
       const existingSubscription = await registration.pushManager.getSubscription();
