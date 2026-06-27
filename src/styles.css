@@ -4618,7 +4618,7 @@ button.projectCard:hover {
   box-sizing: border-box;
   width: min(460px, calc(100vw - 24px));
   display: grid;
-  gap: 12px;
+  gap: 10px;
   border: 1px solid #cfdde8;
   border-radius: 8px;
   background: #f7fafc;
@@ -4626,11 +4626,21 @@ button.projectCard:hover {
   padding: 14px;
 }
 
+.planningApprovalDialog {
+  width: min(440px, calc(100vw - 16px));
+  gap: 9px;
+  padding: 12px;
+}
+
 .planningRescheduleDialog > header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.planningApprovalDialog > header {
+  align-items: center;
 }
 
 .planningRescheduleDialog > header div {
@@ -4642,6 +4652,11 @@ button.projectCard:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.planningApprovalDialog h2 {
+  font-size: 1.15rem;
+  line-height: 1.15;
 }
 
 .planningRescheduleDialog header span,
@@ -4670,16 +4685,25 @@ button.projectCard:hover {
 
 .planningRescheduleInfo {
   display: grid;
-  gap: 4px;
+  gap: 5px;
   border: 1px solid #d8e4ef;
   border-radius: 8px;
   background: #ffffff;
-  padding: 10px;
+  padding: 11px;
 }
 
 .planningRescheduleInfo span {
   color: #172033;
   font-weight: 900;
+  line-height: 1.25;
+}
+
+.planningApprovalDialog .planningRescheduleInfo span {
+  font-size: 0.98rem;
+}
+
+.planningApprovalDialog .planningRescheduleInfo small {
+  line-height: 1.35;
 }
 
 .planningRescheduleGrid {
@@ -4698,6 +4722,7 @@ button.projectCard:hover {
 }
 
 .planningRescheduleGrid input {
+  box-sizing: border-box;
   min-width: 0;
   width: 100%;
   min-height: 42px;
@@ -4708,6 +4733,21 @@ button.projectCard:hover {
   font: inherit;
   font-weight: 850;
   padding: 0 10px;
+}
+
+.planningApprovalDialog .planningRescheduleGrid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr);
+  gap: 7px;
+}
+
+.planningApprovalDialog .planningRescheduleGrid label {
+  font-size: 0.68rem;
+}
+
+.planningApprovalDialog .planningRescheduleGrid input {
+  min-height: 38px;
+  text-align: center;
+  padding: 0 6px;
 }
 
 .planningConflictWarning {
@@ -4752,6 +4792,12 @@ button.projectCard:hover {
   background: #ffffff;
   color: #172033;
   font-weight: 900;
+}
+
+.planningApprovalActions button {
+  min-height: 40px;
+  font-size: 0.9rem;
+  line-height: 1.12;
 }
 
 .planningRescheduleDialog footer .dangerDialogButton {
