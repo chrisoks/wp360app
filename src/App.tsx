@@ -6364,26 +6364,30 @@ function App() {
               <div>
                 <p className="eyebrow">Terminwunsch prüfen</p>
                 <h2>{approvalPlanningEntry.title}</h2>
-                <span>{approvalPlanningEntry.employeeName || "Nicht zugeordnet"}</span>
+                <span>
+                  {approvalPlanningEntry.employeeName || "Nicht zugeordnet"} · angefragt von {approvalPlanningEntry.requestedByName || "unbekannt"}
+                </span>
               </div>
               <button type="button" onClick={closePlanningApproval} aria-label="Freigabe schließen">
                 ×
               </button>
             </header>
             <div className="planningRescheduleInfo planningApprovalInfo">
+              <div className="planningApprovalProject">
+                <span>Projekt / Bereich</span>
+                <strong>{approvalPlanningEntry.projectLabel || approvalPlanningEntry.customer || approvalPlanningEntry.groupName}</strong>
+              </div>
               <div className="planningApprovalMetaGrid">
                 <div>
-                  <span>Bereich</span>
-                  <strong>{approvalPlanningEntry.projectLabel || approvalPlanningEntry.customer || approvalPlanningEntry.groupName}</strong>
+                  <span>Mitarbeiter</span>
+                  <strong>{approvalPlanningEntry.employeeName || "Nicht zugeordnet"}</strong>
                 </div>
                 <div>
-                  <span>Angefragt von</span>
-                  <strong>{approvalPlanningEntry.requestedByName || "unbekannt"}</strong>
-                </div>
-                <div>
-                  <span>Aktuell</span>
+                  <span>Zeitwunsch</span>
                   <strong>
-                    {formatFullDate(approvalPlanningEntry.date)} · {approvalPlanningEntry.startTime}-{approvalPlanningEntry.endTime}
+                    {formatFullDate(approvalPlanningEntry.date)}
+                    <br />
+                    {approvalPlanningEntry.startTime}-{approvalPlanningEntry.endTime}
                   </strong>
                 </div>
               </div>
