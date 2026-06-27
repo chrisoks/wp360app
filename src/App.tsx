@@ -552,11 +552,15 @@ function minutesFromTime(value: string) {
   return hours * 60 + minutes;
 }
 
-function urlBase64ToUint8Array(value: string) {
+function urlBase64ToArrayBuffer(value: string) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
   const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
-  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+  const output = new Uint8Array(raw.length);
+  for (let index = 0; index < raw.length; index += 1) {
+    output[index] = raw.charCodeAt(index);
+  }
+  return output.buffer.slice(0);
 }
 
 function dateTimeMs(dayKey: string, time: string) {
@@ -1152,7 +1156,7 @@ function App() {
         existingSubscription ??
         (await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
+          applicationServerKey: urlBase64ToArrayBuffer(publicKey),
         }));
 
       await fetchJson("/api/push/subscriptions", {
