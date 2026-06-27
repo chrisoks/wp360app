@@ -4627,9 +4627,9 @@ button.projectCard:hover {
 }
 
 .planningApprovalDialog {
-  width: min(440px, calc(100vw - 16px));
-  gap: 9px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
+  width: min(430px, calc(100vw - 16px));
+  gap: 10px;
+  background: #ffffff;
   padding: 12px;
 }
 
@@ -4642,6 +4642,8 @@ button.projectCard:hover {
 
 .planningApprovalDialog > header {
   align-items: center;
+  border-bottom: 1px solid #e4edf4;
+  padding-bottom: 8px;
 }
 
 .planningRescheduleDialog > header div {
@@ -4656,7 +4658,7 @@ button.projectCard:hover {
 }
 
 .planningApprovalDialog h2 {
-  font-size: 1.15rem;
+  font-size: 1.08rem;
   line-height: 1.15;
   margin-top: 2px;
 }
@@ -4675,13 +4677,13 @@ button.projectCard:hover {
 }
 
 .planningRescheduleDialog > header button {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: 1px solid #d5e2ec;
   border-radius: 8px;
   background: #ffffff;
   color: #172033;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 900;
 }
 
@@ -4709,59 +4711,60 @@ button.projectCard:hover {
 }
 
 .planningApprovalInfo {
-  gap: 10px;
-  border-color: #c8d9e7;
-  background: linear-gradient(180deg, #ffffff 0%, #f4f9fc 100%);
-  box-shadow: inset 4px 0 0 #d89b08, 0 10px 26px rgba(15, 35, 52, 0.07);
+  gap: 8px;
+  border-color: #d8e4ef;
+  background: #f8fbfd;
+  box-shadow: 0 8px 22px rgba(15, 35, 52, 0.06);
 }
 
 .planningApprovalMetaGrid {
   display: grid;
-  gap: 7px;
+  gap: 0;
 }
 
-.planningApprovalMetaGrid div,
-.planningApprovalDescription {
+.planningApprovalMetaGrid div {
   display: grid;
-  gap: 3px;
+  grid-template-columns: minmax(82px, 0.42fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
   min-width: 0;
 }
 
 .planningApprovalMetaGrid div {
-  border-bottom: 1px solid #e4edf4;
-  padding-bottom: 7px;
+  border-bottom: 1px solid #e6eef5;
+  padding: 8px 0;
 }
 
 .planningApprovalMetaGrid div:last-child {
   border-bottom: 0;
-  padding-bottom: 0;
 }
 
 .planningApprovalMetaGrid span,
 .planningApprovalDescription span {
   color: #607086;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 950;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .planningApprovalMetaGrid strong,
 .planningApprovalDescription p {
   color: #172033;
-  font-weight: 900;
-  line-height: 1.25;
+  font-weight: 850;
+  line-height: 1.28;
 }
 
 .planningApprovalMetaGrid strong {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .planningApprovalDescription {
-  border: 1px dashed #bfd0df;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-top: 1px solid #e6eef5;
   border-radius: 8px;
   background: #ffffff;
   padding: 9px 10px;
@@ -4769,6 +4772,7 @@ button.projectCard:hover {
 
 .planningApprovalDescription p {
   margin: 0;
+  font-size: 0.92rem;
   white-space: pre-wrap;
 }
 
@@ -4804,6 +4808,10 @@ button.projectCard:hover {
 .planningApprovalDialog .planningRescheduleGrid {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr);
   gap: 7px;
+  border: 1px solid #d8e4ef;
+  border-radius: 8px;
+  background: #f8fbfd;
+  padding: 8px;
 }
 
 .planningApprovalDialog .planningRescheduleGrid label {
@@ -4811,7 +4819,7 @@ button.projectCard:hover {
 }
 
 .planningApprovalDialog .planningRescheduleGrid input {
-  min-height: 38px;
+  min-height: 36px;
   text-align: center;
   padding: 0 6px;
 }
@@ -4861,7 +4869,7 @@ button.projectCard:hover {
 }
 
 .planningApprovalActions button {
-  min-height: 40px;
+  min-height: 42px;
   font-size: 0.9rem;
   line-height: 1.12;
 }
@@ -4869,6 +4877,8 @@ button.projectCard:hover {
 .planningApprovalActions .primaryDialogButton {
   border-color: #0f6675;
   background: #0f6675;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 102, 117, 0.18);
 }
 
 .planningApprovalActions button:not(.primaryDialogButton):not(.dangerDialogButton) {
@@ -4877,7 +4887,7 @@ button.projectCard:hover {
 
 .planningApprovalActions button:nth-child(3) {
   border-color: #f5c453;
-  background: #fff8e6;
+  background: #fffbeb;
   color: #8a5a00;
 }
 
