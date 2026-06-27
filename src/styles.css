@@ -4711,20 +4711,20 @@ button.projectCard:hover {
 }
 
 .planningApprovalInfo {
-  gap: 10px;
+  gap: 8px;
   border: 0;
   background: #f3f8fb;
   box-shadow: inset 0 0 0 1px #d8e4ef;
-  padding: 12px;
+  padding: 10px;
 }
 
 .planningApprovalProject {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   border-radius: 8px;
   background: #ffffff;
-  padding: 11px;
+  padding: 9px 10px;
   box-shadow: 0 8px 18px rgba(15, 35, 52, 0.05);
 }
 
@@ -4742,14 +4742,14 @@ button.projectCard:hover {
   border: 1px solid #d8e4ef;
   border-radius: 8px;
   background: #ffffff;
-  padding: 9px 10px;
+  padding: 8px 9px;
 }
 
 .planningApprovalProject span,
 .planningApprovalMetaGrid span,
 .planningApprovalDescription span {
   color: #607086;
-  font-size: 0.64rem;
+  font-size: 0.58rem;
   font-weight: 950;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -4764,14 +4764,14 @@ button.projectCard:hover {
 }
 
 .planningApprovalProject strong {
-  font-size: 0.98rem;
+  font-size: 0.9rem;
   overflow-wrap: anywhere;
 }
 
 .planningApprovalMetaGrid strong {
   display: block;
   overflow-wrap: anywhere;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .planningApprovalDescription {
@@ -4781,12 +4781,12 @@ button.projectCard:hover {
   border: 1px solid #d8e4ef;
   border-radius: 8px;
   background: #ffffff;
-  padding: 10px 11px;
+  padding: 9px 10px;
 }
 
 .planningApprovalDescription p {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   white-space: pre-wrap;
 }
 
@@ -4799,6 +4799,7 @@ button.projectCard:hover {
 .planningRescheduleGrid label {
   display: grid;
   gap: 5px;
+  min-width: 0;
   color: #536174;
   font-size: 0.72rem;
   font-weight: 900;
@@ -4821,7 +4822,7 @@ button.projectCard:hover {
 
 .planningApprovalDialog .planningRescheduleGrid {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr);
-  gap: 8px;
+  gap: 7px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -4833,10 +4834,13 @@ button.projectCard:hover {
 }
 
 .planningApprovalDialog .planningRescheduleGrid input {
-  min-height: 40px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 36px;
   border-color: #cdddea;
   border-radius: 8px;
   background: #ffffff;
+  font-size: 0.82rem;
   text-align: center;
   padding: 0 6px;
   box-shadow: 0 5px 14px rgba(15, 35, 52, 0.04);
@@ -5731,11 +5735,8 @@ button.projectCard:hover {
   }
 
   .planningApprovalDialog .planningRescheduleGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .planningApprovalDialog .planningRescheduleGrid label:first-child {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .projectPhotoDialog > header {
@@ -6193,15 +6194,5 @@ button.projectCard:hover {
 
   .timePeriodSwitch {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 360px) {
-  .planningApprovalDialog .planningRescheduleGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .planningApprovalDialog .planningRescheduleGrid label:first-child {
-    grid-column: auto;
   }
 }
