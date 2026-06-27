@@ -3239,7 +3239,7 @@ function App() {
   }
 
   function isPlanningRequest(entry: PlanningEntry) {
-    return entry.approvalStatus === "requested";
+    return entry.approvalStatus === "requested" || Boolean(entry.requestedByUserId && !entry.approvedAt);
   }
 
   function openPlanningApproval(entry: PlanningEntry) {
@@ -3447,8 +3447,18 @@ function App() {
     if (target === "planning-entry" || target === "planning-entry-overlap") {
       const entry = data.planning.find((item) => item.id === targetId);
       if (entry) {
-        setHomePlanningDateKey(normalizeDateKeyValue(entry.date));
-        setSelectedAppointmentDayKey(normalizeDateKeyValue(entry.date));
+        const entryDateKey = normalizeDateKeyValue(entry.date);
+        setHomePlanningDateKey(entryDateKey);
+        setSelectedAppointmentDayKey(entryDateKey);
+        setPlanningWeekStartKey(startOfWeekKey(dateFromKey(entryDateKey)));
+        if (canUsePlanningSection) {
+          setSelectedPlanningDay({
+            dateKey: entryDateKey,
+            board: entry.board || "",
+            groupName: entry.groupName || "Gesamt",
+          });
+          setPlanningDayView("board");
+        }
       }
       setActiveSection(canUsePlanningSection ? "planning" : "appointments");
       setIsNotificationsOpen(false);
@@ -5313,6 +5323,7 @@ function App() {
                                       className={`mobilePlannerBar ${isDone ? "done" : ""} ${isRequest ? "requested" : ""}`}
                                       key={entry.id}
                                       type="button"
+                                      data-approval={isRequest ? "requested" : entry.approvalStatus || "confirmed"}
                                       style={{ left: `${left}%`, width: `${Math.max(7, width)}%` }}
                                       onClick={() => openPlanningApproval(entry)}
                                       disabled={!canReschedulePlanningEntry(entry)}

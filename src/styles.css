@@ -2560,7 +2560,8 @@ button.planningBar:hover {
     0 10px 22px rgba(22, 163, 74, 0.2);
 }
 
-.mobilePlannerBar.requested {
+.mobilePlannerBar.requested,
+.mobilePlannerBar[data-approval="requested"] {
   border-color: #fbbf24;
   background: #f59e0b;
   color: #172033;
