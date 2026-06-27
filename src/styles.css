@@ -2437,7 +2437,9 @@ button.planningBar:hover {
 }
 
 .mobilePlannerBoardCanvas {
-  min-width: 1060px;
+  --planner-worker-width: 190px;
+  --planner-hour-width: 58px;
+  min-width: calc(var(--planner-worker-width) + 14 * var(--planner-hour-width));
   overflow: hidden;
   border: 2px solid #b9cad8;
   border-radius: 8px;
@@ -2450,7 +2452,7 @@ button.planningBar:hover {
 .mobilePlannerBoardHeader,
 .mobilePlannerBoardRow {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
+  grid-template-columns: var(--planner-worker-width) repeat(14, var(--planner-hour-width));
 }
 
 .mobilePlannerBoardHeader {
@@ -2484,10 +2486,6 @@ button.planningBar:hover {
   grid-column: auto;
 }
 
-.mobilePlannerBoardHeader {
-  grid-template-columns: 190px repeat(15, 58px);
-}
-
 .mobilePlannerBoardRow {
   min-height: 92px;
   border-bottom: 1px solid #e4edf5;
@@ -2499,6 +2497,7 @@ button.planningBar:hover {
 
 .mobilePlannerWorker {
   display: grid;
+  grid-column: 1;
   align-content: center;
   gap: 4px;
   padding: 12px 14px;
@@ -2525,9 +2524,10 @@ button.planningBar:hover {
 
 .mobilePlannerLane {
   position: relative;
+  grid-column: 2 / -1;
   min-height: 92px;
   background:
-    linear-gradient(90deg, rgba(216, 229, 239, 0.95) 1px, transparent 1px) 0 0 / calc(100% / 14) 100%,
+    linear-gradient(90deg, rgba(216, 229, 239, 0.95) 1px, transparent 1px) 0 0 / var(--planner-hour-width) 100%,
     linear-gradient(90deg, #eef2f6 0 14.285%, transparent 14.285% 78.57%, #eef2f6 78.57% 100%),
     #ffffff;
 }
@@ -4629,6 +4629,7 @@ button.projectCard:hover {
 .planningApprovalDialog {
   width: min(440px, calc(100vw - 16px));
   gap: 9px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
   padding: 12px;
 }
 
@@ -4657,6 +4658,7 @@ button.projectCard:hover {
 .planningApprovalDialog h2 {
   font-size: 1.15rem;
   line-height: 1.15;
+  margin-top: 2px;
 }
 
 .planningRescheduleDialog header span,
@@ -4704,6 +4706,70 @@ button.projectCard:hover {
 
 .planningApprovalDialog .planningRescheduleInfo small {
   line-height: 1.35;
+}
+
+.planningApprovalInfo {
+  gap: 10px;
+  border-color: #c8d9e7;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f9fc 100%);
+  box-shadow: inset 4px 0 0 #d89b08, 0 10px 26px rgba(15, 35, 52, 0.07);
+}
+
+.planningApprovalMetaGrid {
+  display: grid;
+  gap: 7px;
+}
+
+.planningApprovalMetaGrid div,
+.planningApprovalDescription {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.planningApprovalMetaGrid div {
+  border-bottom: 1px solid #e4edf4;
+  padding-bottom: 7px;
+}
+
+.planningApprovalMetaGrid div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.planningApprovalMetaGrid span,
+.planningApprovalDescription span {
+  color: #607086;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.planningApprovalMetaGrid strong,
+.planningApprovalDescription p {
+  color: #172033;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.planningApprovalMetaGrid strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planningApprovalDescription {
+  border: 1px dashed #bfd0df;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 9px 10px;
+}
+
+.planningApprovalDescription p {
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 .planningRescheduleGrid {
@@ -4798,6 +4864,21 @@ button.projectCard:hover {
   min-height: 40px;
   font-size: 0.9rem;
   line-height: 1.12;
+}
+
+.planningApprovalActions .primaryDialogButton {
+  border-color: #0f6675;
+  background: #0f6675;
+}
+
+.planningApprovalActions button:not(.primaryDialogButton):not(.dangerDialogButton) {
+  background: #ffffff;
+}
+
+.planningApprovalActions button:nth-child(3) {
+  border-color: #f5c453;
+  background: #fff8e6;
+  color: #8a5a00;
 }
 
 .planningRescheduleDialog footer .dangerDialogButton {

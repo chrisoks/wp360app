@@ -5285,7 +5285,7 @@ function App() {
                       <div className="mobilePlannerBoardCanvas">
                         <div className="mobilePlannerBoardHeader">
                           <span>Team</span>
-                          {Array.from({ length: 15 }, (_, index) => 6 + index).map((hour) => (
+                          {Array.from({ length: 14 }, (_, index) => 6 + index).map((hour) => (
                             <strong key={hour}>{`${String(hour).padStart(2, "0")}:00`}</strong>
                           ))}
                         </div>
@@ -6370,12 +6370,29 @@ function App() {
                 ×
               </button>
             </header>
-            <div className="planningRescheduleInfo">
-              <span>{approvalPlanningEntry.projectLabel || approvalPlanningEntry.customer || approvalPlanningEntry.groupName}</span>
-              <small>
-                Angefragt von {approvalPlanningEntry.requestedByName || "unbekannt"} · aktuell{" "}
-                {formatFullDate(approvalPlanningEntry.date)}, {approvalPlanningEntry.startTime}-{approvalPlanningEntry.endTime}
-              </small>
+            <div className="planningRescheduleInfo planningApprovalInfo">
+              <div className="planningApprovalMetaGrid">
+                <div>
+                  <span>Bereich</span>
+                  <strong>{approvalPlanningEntry.projectLabel || approvalPlanningEntry.customer || approvalPlanningEntry.groupName}</strong>
+                </div>
+                <div>
+                  <span>Angefragt von</span>
+                  <strong>{approvalPlanningEntry.requestedByName || "unbekannt"}</strong>
+                </div>
+                <div>
+                  <span>Aktuell</span>
+                  <strong>
+                    {formatFullDate(approvalPlanningEntry.date)} · {approvalPlanningEntry.startTime}-{approvalPlanningEntry.endTime}
+                  </strong>
+                </div>
+              </div>
+              {approvalPlanningEntry.description?.trim() && (
+                <div className="planningApprovalDescription">
+                  <span>Beschreibung</span>
+                  <p>{approvalPlanningEntry.description.trim()}</p>
+                </div>
+              )}
             </div>
             {approvalConflicts.length > 0 && (
               <div className="planningConflictWarning">
