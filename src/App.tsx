@@ -2,6 +2,7 @@
   Bell,
   BriefcaseBusiness,
   Camera,
+  CalendarCheck,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -23,7 +24,7 @@
 } from "lucide-react";
 import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type AppSection = "home" | "time" | "tasks" | "projects" | "planning" | "personal" | "contacts" | "team";
+type AppSection = "home" | "time" | "tasks" | "projects" | "appointments" | "planning" | "personal" | "contacts" | "team";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -39,12 +40,20 @@ type Task = {
   kunde?: string;
   projectId?: string;
   projectLabel?: string;
+  gewerkId?: string;
   gewerk?: string;
   rolle?: string;
   kundenklasse?: string;
   createdAt?: string;
   createdByName?: string;
   createdById?: string;
+  acceptanceStatus?: string;
+  rejectionReason?: string;
+  autoFeedbackEnabled?: boolean;
+  autoFeedbackRecipientId?: string;
+  recurrenceEnabled?: boolean;
+  recurrenceInterval?: string;
+  planningAllocations?: Array<{ date: string; minutes: number }>;
   kommentare?: TaskComment[];
   history?: TaskHistoryEntry[];
   participants?: TaskParticipant[];
@@ -84,6 +93,7 @@ type TaskParticipant = {
 };
 
 type TaskFilter = "open" | "mine" | "progress" | "waiting" | "done" | "all";
+type TaskDetailTab = "comments" | "participants" | "details" | "history";
 
 type Contact = {
   id: string;
@@ -149,6 +159,7 @@ type Project = {
 
 type PlanningEntry = {
   id: string;
+  source?: string;
   board: string;
   groupName: string;
   userId?: string;
@@ -158,10 +169,28 @@ type PlanningEntry = {
   endTime: string;
   durationMinutes?: number;
   title: string;
+  description?: string;
   customer?: string;
   projectId?: string;
   projectLabel?: string;
+  planningTrade?: string;
+  billingCatalogItemId?: string;
+  billingCatalogItemLabel?: string;
+  billingGroupId?: string;
+  offerId?: string;
+  offerLineId?: string;
+  offerLabel?: string;
+  offerTotalMinutes?: number;
+  offerPlannedMinutes?: number;
+  marketingContentItemId?: string;
+  marketingContentScheduleId?: string;
+  recurrenceId?: string;
+  recurrenceRule?: string;
   approvalStatus?: string;
+  requestedByUserId?: string;
+  requestedByName?: string;
+  approvedByUserId?: string;
+  approvedAt?: string;
   deletedAt?: string;
 };
 
@@ -248,6 +277,8 @@ type PlanningEntryStatus = "active" | "done" | "interrupted" | "open" | "past";
 type ProjectPhotoCategory = "Vorherbilder" | "Nachherbilder";
 type TimeViewMode = "me" | "team" | "company";
 type TimePeriod = "today" | "week" | "month" | "all";
+type TimeIssueFilter = "" | "interrupted" | "photos" | "final";
+type PlanningDayView = "board" | "workers";
 
 type PendingProjectPhoto = {
   category: ProjectPhotoCategory;
@@ -260,9 +291,26 @@ type Notification = {
   id: string;
   subject: string;
   body: string;
+  channel?: string;
   createdAt: string;
   readAt: string | null;
+  taskId?: string | null;
+  linkTarget?: string;
+  linkTargetId?: string;
+  linkLabel?: string;
 };
+
+type NotificationHistoryResponse = {
+  items: Notification[];
+  hasMore: boolean;
+  nextOffset: number;
+};
+
+type PushPublicKeyResponse = {
+  publicKey: string;
+};
+
+type PushUiStatus = "idle" | "enabled" | "blocked" | "unsupported";
 
 type ApiData = {
   tasks: Task[];
@@ -297,12 +345,13 @@ const sections: Array<{
   { id: "time", label: "Zeit", icon: Clock3 },
   { id: "tasks", label: "Aufgaben", icon: ListChecks },
   { id: "projects", label: "Projekte", icon: FolderKanban },
+  { id: "appointments", label: "Meine Termine", icon: CalendarCheck },
   { id: "planning", label: "Planung", icon: CalendarDays },
   { id: "personal", label: "Persönlich", icon: IdCard },
   { id: "team", label: "Team", icon: Users },
   { id: "contacts", label: "Kontakte", icon: BriefcaseBusiness },
 ];
-const mobileSectionIds: AppSection[] = ["home", "time", "tasks", "planning", "personal"];
+const mobileSectionIds: AppSection[] = ["home", "time", "tasks", "appointments", "planning", "personal"];
 
 const emptyData: ApiData = {
   tasks: [],
@@ -503,6 +552,13 @@ function minutesFromTime(value: string) {
   return hours * 60 + minutes;
 }
 
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
 function dateTimeMs(dayKey: string, time: string) {
   const normalized = normalizeDateKeyValue(dayKey);
   const parsed = new Date(`${normalized || dayKey}T${time}:00`).getTime();
@@ -640,6 +696,64 @@ function taskStatusLabel(task: Task) {
   return task.status || "offen";
 }
 
+const TASK_STATUS_ACTIONS = [
+  { status: "offen", label: "Offen" },
+  { status: "in Bearbeitung", label: "In Bearbeitung" },
+  { status: "wartet auf Rückmeldung", label: "Wartet auf Rückmeldung" },
+  { status: "erledigt", label: "Erledigt" },
+  { status: "abgelehnt", label: "Abgelehnt" },
+  { status: "überfällig", label: "Überfällig" },
+  { status: "archiviert", label: "Archiviert" },
+];
+
+const TASK_QUICK_STATUS_ACTIONS = TASK_STATUS_ACTIONS.filter((action) =>
+  ["in bearbeitung", "wartet auf rückmeldung", "erledigt"].includes(normalizedText(action.status))
+);
+
+function availableTaskStatusActions(task: Task) {
+  const currentStatus = normalizedText(task.status);
+  return TASK_QUICK_STATUS_ACTIONS.filter((action) => normalizedText(action.status) !== currentStatus);
+}
+
+function toLocalDateTimeInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function defaultTaskDeadline() {
+  const deadline = new Date();
+  deadline.setHours(17, 0, 0, 0);
+  return toLocalDateTimeInputValue(deadline);
+}
+
+function buildTaskApiPayload(task: Task, actor: User, nextStatus = task.status) {
+  return {
+    id: task.id,
+    actorId: actor.id,
+    title: task.titel,
+    description: task.beschreibung ?? "",
+    status: nextStatus || "offen",
+    priority: task.prioritaet || "normal",
+    tradeId: task.gewerkId || null,
+    ownerId: task.zustaendigId || actor.id,
+    deadline: task.faelligkeit || defaultTaskDeadline(),
+    customer: task.kunde || "",
+    customerClass: task.kundenklasse || null,
+    projectId: task.projectId || null,
+    autoFeedbackEnabled: Boolean(task.autoFeedbackEnabled),
+    autoFeedbackRecipientId: task.autoFeedbackRecipientId || null,
+    recurrenceEnabled: Boolean(task.recurrenceEnabled),
+    recurrenceInterval: task.recurrenceInterval || null,
+    estimateMinutes: task.vorgabeMinuten ?? null,
+    planningAllocations: task.planningAllocations ?? [],
+    absenceHandoverTask: false,
+  };
+}
+
 function taskPriorityLabel(task: Task) {
   return task.prioritaet || "normal";
 }
@@ -689,6 +803,7 @@ function App() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [taskFilter, setTaskFilter] = useState<TaskFilter>("open");
   const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [taskDetailTab, setTaskDetailTab] = useState<TaskDetailTab>("comments");
   const [taskCommentText, setTaskCommentText] = useState("");
   const [taskCommentRecipientId, setTaskCommentRecipientId] = useState("");
   const [taskParticipantUserId, setTaskParticipantUserId] = useState("");
@@ -708,11 +823,27 @@ function App() {
   const [homePlanningDateKey, setHomePlanningDateKey] = useState(() => dateKey());
   const [planningWeekStartKey, setPlanningWeekStartKey] = useState(() => startOfWeekKey());
   const [selectedPlanningDay, setSelectedPlanningDay] = useState<SelectedPlanningDay | null>(null);
+  const [planningDayView, setPlanningDayView] = useState<PlanningDayView>("board");
+  const [reschedulePlanningEntryId, setReschedulePlanningEntryId] = useState("");
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleStartTime, setRescheduleStartTime] = useState("");
+  const [rescheduleEndTime, setRescheduleEndTime] = useState("");
+  const [rescheduleError, setRescheduleError] = useState("");
+  const [isReschedulingPlanning, setIsReschedulingPlanning] = useState(false);
+  const [selectedAppointmentDayKey, setSelectedAppointmentDayKey] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [isStartDialogOpen, setIsStartDialogOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [showNotificationHistory, setShowNotificationHistory] = useState(false);
+  const [notificationSearchTerm, setNotificationSearchTerm] = useState("");
+  const [notificationActionError, setNotificationActionError] = useState("");
+  const [pushStatus, setPushStatus] = useState<PushUiStatus>("idle");
+  const [pushMessage, setPushMessage] = useState("");
+  const [isPushSaving, setIsPushSaving] = useState(false);
   const [timeViewMode, setTimeViewMode] = useState<TimeViewMode>("me");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
+  const [timeIssueFilter, setTimeIssueFilter] = useState<TimeIssueFilter>("");
   const [absenceType, setAbsenceType] = useState<"urlaub" | "krank">("urlaub");
   const [absenceDateFrom, setAbsenceDateFrom] = useState(() => dateKey());
   const [absenceDateTo, setAbsenceDateTo] = useState(() => dateKey());
@@ -732,6 +863,9 @@ function App() {
   const [upsellAnswer, setUpsellAnswer] = useState<UpsellAnswer>("no");
   const [upsellNotes, setUpsellNotes] = useState("");
   const [isCompletingStamp, setIsCompletingStamp] = useState(false);
+  const [postProcessEntryId, setPostProcessEntryId] = useState("");
+  const [postProcessError, setPostProcessError] = useState("");
+  const [isPostProcessing, setIsPostProcessing] = useState(false);
   const [photoUploadError, setPhotoUploadError] = useState("");
   const [uploadingPhotoCategory, setUploadingPhotoCategory] = useState<ProjectPhotoCategory | "">("");
   const [photoCaptureTarget, setPhotoCaptureTarget] = useState<{
@@ -902,14 +1036,208 @@ function App() {
     }
   }
 
-  async function loadProjectLogbookEntries(force = false) {
+  async function refreshHomePlanningData() {
+    await Promise.all([refreshPlanningData(), loadProjectLogbookEntries(true)]);
+  }
+
+  async function loadNotifications(options: { history?: boolean; search?: string } = {}) {
+    const userId = selectedUserId || loginUser?.id || "";
+    if (!userId) return [];
+
+    const params = new URLSearchParams({ userId });
+    if (options.history) {
+      params.set("history", "true");
+      params.set("limit", "50");
+    }
+    if (options.search?.trim()) params.set("search", options.search.trim());
+
+    try {
+      const result = options.history
+        ? await fetchJson<NotificationHistoryResponse>(`/api/notifications?${params.toString()}`)
+        : await fetchJson<Notification[]>(`/api/notifications?${params.toString()}`);
+      const notifications = Array.isArray(result) ? result : result.items;
+      setData((current) => ({ ...current, notifications }));
+      setNotificationActionError("");
+      return notifications;
+    } catch (notificationError) {
+      setNotificationActionError(
+        notificationError instanceof Error
+          ? notificationError.message
+          : "Benachrichtigungen konnten nicht geladen werden."
+      );
+      return [];
+    }
+  }
+
+  async function markNotificationsRead() {
+    const userId = selectedUserId || loginUser?.id || "";
+    if (!userId) return;
+
+    try {
+      await fetchJson("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      await loadNotifications({ history: showNotificationHistory, search: notificationSearchTerm });
+    } catch (markError) {
+      setNotificationActionError(
+        markError instanceof Error ? markError.message : "Benachrichtigungen konnten nicht gelesen markiert werden."
+      );
+    }
+  }
+
+  function supportsPushNotifications() {
+    return "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+  }
+
+  async function refreshPushStatus() {
+    if (!supportsPushNotifications()) {
+      setPushStatus("unsupported");
+      setPushMessage("Push wird auf diesem Gerät oder in diesem Browser nicht unterstützt.");
+      return;
+    }
+
+    if (window.Notification.permission === "denied") {
+      setPushStatus("blocked");
+      setPushMessage("Push ist im Browser blockiert. Bitte in den Geräteeinstellungen erlauben.");
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      setPushStatus(subscription ? "enabled" : "idle");
+      setPushMessage(subscription ? "Pushbenachrichtigungen sind für dieses Gerät aktiv." : "");
+    } catch {
+      setPushStatus("idle");
+      setPushMessage("");
+    }
+  }
+
+  async function enablePushNotifications() {
+    const userId = selectedUserId || loginUser?.id || "";
+    if (!userId) {
+      setPushMessage("Bitte erst einloggen.");
+      return;
+    }
+
+    if (!supportsPushNotifications()) {
+      setPushStatus("unsupported");
+      setPushMessage("Push wird auf diesem Gerät oder in diesem Browser nicht unterstützt.");
+      return;
+    }
+
+    setIsPushSaving(true);
+    setPushMessage("");
+
+    try {
+      const permission =
+        window.Notification.permission === "default"
+          ? await window.Notification.requestPermission()
+          : window.Notification.permission;
+
+      if (permission !== "granted") {
+        setPushStatus(permission === "denied" ? "blocked" : "idle");
+        setPushMessage("Push wurde nicht erlaubt.");
+        return;
+      }
+
+      const { publicKey } = await fetchJson<PushPublicKeyResponse>("/api/push/public-key");
+      if (!publicKey) throw new Error("Push-Schlüssel fehlt.");
+
+      const registration = await navigator.serviceWorker.ready;
+      const existingSubscription = await registration.pushManager.getSubscription();
+      const subscription =
+        existingSubscription ??
+        (await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        }));
+
+      await fetchJson("/api/push/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          subscription: subscription.toJSON(),
+          userAgent: navigator.userAgent,
+        }),
+      });
+
+      setPushStatus("enabled");
+      setPushMessage("Pushbenachrichtigungen sind für dieses Gerät aktiv.");
+    } catch (pushError) {
+      setPushStatus("idle");
+      setPushMessage(
+        pushError instanceof Error && pushError.message.includes("/api/push")
+          ? "Push ist in der PWA vorbereitet. Das Hauptprogramm muss die Push-Endpunkte noch bereitstellen."
+          : pushError instanceof Error
+            ? pushError.message
+            : "Push konnte nicht aktiviert werden."
+      );
+    } finally {
+      setIsPushSaving(false);
+    }
+  }
+
+  function mergeProjectLogbookEntry(existing: ProjectLogbookEntry | undefined, incoming: ProjectLogbookEntry) {
+    if (!existing) return incoming;
+
+    return {
+      ...existing,
+      ...incoming,
+      attachments: incoming.attachments.map((attachment, index) => {
+        if (attachment.dataUrl) return attachment;
+        const existingAttachment =
+          existing.attachments[index]?.name === attachment.name
+            ? existing.attachments[index]
+            : existing.attachments.find((item) => item.name === attachment.name);
+        return existingAttachment?.dataUrl ? { ...attachment, dataUrl: existingAttachment.dataUrl } : attachment;
+      }),
+    };
+  }
+
+  function mergeProjectLogbookEntries(
+    current: ProjectLogbookEntry[],
+    incoming: ProjectLogbookEntry[],
+    options: { replaceAll?: boolean; projectId?: string } = {}
+  ) {
+    const existingById = new Map(current.map((entry) => [entry.id, entry]));
+    const mergedIncoming = incoming.map((entry) => mergeProjectLogbookEntry(existingById.get(entry.id), entry));
+    if (options.replaceAll) return mergedIncoming;
+
+    const incomingIds = new Set(incoming.map((entry) => entry.id));
+    const remaining = current.filter((entry) => {
+      if (incomingIds.has(entry.id)) return false;
+      if (options.projectId && entry.projectId === options.projectId) return false;
+      return true;
+    });
+    return [...mergedIncoming, ...remaining];
+  }
+
+  async function loadProjectLogbookEntries(force = false, projectId = "") {
     if (!force && hasProjectLogbookLoadedRef.current) return data.projectLogbookEntries;
     if (isProjectLogbookLoadingRef.current) return data.projectLogbookEntries;
     isProjectLogbookLoadingRef.current = true;
     try {
-      const entries = await fetchJson<ProjectLogbookEntry[]>("/api/project-logbook-entries");
+      const params = new URLSearchParams();
+      const actorId = activeUser?.id || selectedUserId || loginUser?.id || "";
+      if (actorId) params.set("actorId", actorId);
+      if (projectId) {
+        params.set("projectId", projectId);
+      } else {
+        params.set("summary", "1");
+      }
+      const entries = await fetchJson<ProjectLogbookEntry[]>(`/api/project-logbook-entries?${params.toString()}`);
       hasProjectLogbookLoadedRef.current = true;
-      setData((current) => ({ ...current, projectLogbookEntries: entries }));
+      setData((current) => ({
+        ...current,
+        projectLogbookEntries: mergeProjectLogbookEntries(current.projectLogbookEntries, entries, {
+          replaceAll: !projectId,
+          projectId,
+        }),
+      }));
       setError("");
       return entries;
     } catch (loadError) {
@@ -927,11 +1255,42 @@ function App() {
 
   useEffect(() => {
     if (!selectedUserId || state === "idle") return;
-    fetchJson<Notification[]>(`/api/notifications?userId=${encodeURIComponent(selectedUserId)}`)
-      .then((notifications) => setData((current) => ({ ...current, notifications })))
-      .catch(() => undefined);
+    void loadNotifications();
     loadStampSession(selectedUserId);
-  }, [selectedUserId]);
+    void refreshPushStatus();
+  }, [selectedUserId, state]);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "WORKPILOT_NOTIFICATION_CLICK") return;
+      void openNotificationTargetData(event.data.target, event.data.targetId);
+    };
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+  });
+
+  useEffect(() => {
+    if (state !== "ready") return;
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get("target") || "";
+    const targetId = params.get("targetId") || "";
+    if (!target || !targetId) return;
+
+    void openNotificationTargetData(target, targetId);
+    params.delete("target");
+    params.delete("targetId");
+    const nextSearch = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`);
+  }, [state, data.tasks.length, data.planning.length, data.projects.length]);
+
+  useEffect(() => {
+    if (!selectedUserId || state === "idle") return;
+    const intervalId = window.setInterval(() => {
+      void loadNotifications();
+    }, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [selectedUserId, state]);
 
   useEffect(() => {
     if (!activeUser) return;
@@ -961,8 +1320,9 @@ function App() {
 
   useEffect(() => {
     if (!selectedUserId || activeSection !== "home") return;
+    void loadProjectLogbookEntries(true);
     const intervalId = window.setInterval(() => {
-      refreshPlanningData();
+      void refreshHomePlanningData();
     }, 30000);
     return () => window.clearInterval(intervalId);
   }, [activeSection, selectedUserId]);
@@ -975,7 +1335,7 @@ function App() {
 
   useEffect(() => {
     if (activeSection !== "projects" || !selectedProjectId) return;
-    void loadProjectLogbookEntries();
+    void loadProjectLogbookEntries(true, selectedProjectId);
   }, [activeSection, selectedProjectId]);
 
   useEffect(() => {
@@ -990,6 +1350,11 @@ function App() {
     }, 30000);
     return () => window.clearInterval(intervalId);
   }, [session?.mode, session?.projectId]);
+
+  useEffect(() => {
+    if (activeSection !== "time") return;
+    void loadProjectLogbookEntries(true);
+  }, [activeSection, selectedUserId]);
 
   useEffect(() => {
     return () => {
@@ -1042,6 +1407,21 @@ function App() {
       }))
       .filter((participant) => participant.id);
   }, [selectedTask]);
+  const getTaskUserAcceptanceStatus = (task: Task) => {
+    if (!activeUser) return "accepted";
+    if (task.zustaendigId === activeUser.id || normalizedText(task.zustaendig) === normalizedText(activeUser.name)) {
+      return task.acceptanceStatus || "accepted";
+    }
+    const participant = (task.participants ?? []).find(
+      (item) => item.userId === activeUser.id || normalizedText(item.name || item.userName) === normalizedText(activeUser.name)
+    );
+    return participant?.acceptanceStatus || "accepted";
+  };
+  const canRespondToTask = (task: Task) => getTaskUserAcceptanceStatus(task) === "pending";
+  const openTaskDetail = (taskId: string) => {
+    setTaskDetailTab("comments");
+    setSelectedTaskId(taskId);
+  };
   const taskFilterOptions = useMemo(() => {
     const activeUserName = normalizedText(activeUser?.name);
     const activeUserId = activeUser?.id ?? "";
@@ -1156,11 +1536,19 @@ function App() {
     const date = new Date(task.faelligkeit);
     return !Number.isNaN(date.getTime()) && date.getTime() < Date.now();
   });
-  const unreadNotifications = data.notifications.filter((notification) => !notification.readAt);
+  const sortedNotifications = [...data.notifications].sort(
+    (first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
+  );
+  const unreadNotifications = sortedNotifications.filter((notification) => !notification.readAt);
+  const visibleNotifications = sortedNotifications.filter((notification) => {
+    const search = normalizedText(notificationSearchTerm);
+    if (!search) return true;
+    return normalizedText(`${notification.subject} ${notification.body}`).includes(search);
+  });
   const selectedUserTimeEntries = data.timeEntries.filter(
     (entry) => entry.userId === activeUser?.id || entry.employee === activeUser?.name
   );
-  const activeUserRole = normalizedText(activeUser?.roleLabel);
+  const activeUserRole = normalizedText(activeUser?.roleLabel || loginUser?.roleLabel);
   const canUseCompanyTimeView =
     activeUserRole.includes("geschäft") ||
     activeUserRole.includes("geschaeft") ||
@@ -1171,6 +1559,15 @@ function App() {
     activeUserRole.includes("fuehrung") ||
     activeUserRole.includes("leitung") ||
     Boolean(activeUser?.planningResponsibleFor?.length);
+  const canUsePlanningSection = canUseCompanyTimeView || canUseTeamTimeView;
+  const visibleSections = sections.filter((section) => section.id !== "planning" || canUsePlanningSection);
+  const mobileSections = visibleSections.filter((section) => mobileSectionIds.includes(section.id));
+  useEffect(() => {
+    if (activeSection === "planning" && !canUsePlanningSection) {
+      setActiveSection("appointments");
+      setSelectedPlanningDay(null);
+    }
+  }, [activeSection, canUsePlanningSection]);
   const availableTimeViews: TimeViewMode[] = [
     "me",
     ...(canUseTeamTimeView ? (["team"] as TimeViewMode[]) : []),
@@ -1222,17 +1619,31 @@ function App() {
     .filter((entry) => entry.mode === "project")
     .reduce((sum, entry) => sum + timeEntryNetMs(entry), 0);
   const unproductiveMonthMs = Math.max(0, timeMonthMs - productiveMonthMs);
-  const interruptedTimeEntries = timeViewEntries.filter((entry) => entry.completionStatus === "interrupted");
-  const missingCommentTimeEntries = timeViewEntries.filter((entry) => !entry.comment?.trim());
+  const timeEntryNeedsPhotoDocumentation = (entry: ProjectTimeEntry) => {
+    if (entry.mode !== "project" || !entry.projectId) return false;
+    const counts = getProjectPhotoCounts(entry.projectId);
+    return counts.before === 0 || counts.after === 0;
+  };
+  const timeEntryNeedsFinalInspectionReview = (entry: ProjectTimeEntry) =>
+    entry.mode === "project" && !["finished", "interrupted"].includes(entry.completionStatus || "");
   const timeEntryList = [...timeViewEntries].sort((first, second) => {
     const dateCompare = normalizeDateKeyValue(second.date).localeCompare(normalizeDateKeyValue(first.date));
     return dateCompare || second.startTime.localeCompare(first.startTime);
   });
-  const timePeriodEntries = timeEntryList.filter((entry) => {
+  const baseTimePeriodEntries = timeEntryList.filter((entry) => {
     const entryDateKey = normalizeDateKeyValue(entry.date);
     if (timePeriod === "today") return entryDateKey === dateKey();
     if (timePeriod === "week") return entryDateKey >= startOfWeekKey() && entryDateKey <= endOfWeekKey();
     if (timePeriod === "month") return entryDateKey.startsWith(monthKey());
+    return true;
+  });
+  const interruptedTimeEntries = baseTimePeriodEntries.filter((entry) => entry.completionStatus === "interrupted");
+  const photoDocumentationTimeEntries = baseTimePeriodEntries.filter(timeEntryNeedsPhotoDocumentation);
+  const finalInspectionReviewTimeEntries = baseTimePeriodEntries.filter(timeEntryNeedsFinalInspectionReview);
+  const timePeriodEntries = baseTimePeriodEntries.filter((entry) => {
+    if (timeIssueFilter === "interrupted") return entry.completionStatus === "interrupted";
+    if (timeIssueFilter === "photos") return timeEntryNeedsPhotoDocumentation(entry);
+    if (timeIssueFilter === "final") return timeEntryNeedsFinalInspectionReview(entry);
     return true;
   });
   const groupEntriesByDay = (entries: ProjectTimeEntry[]) => {
@@ -1340,9 +1751,11 @@ function App() {
         ? Math.max(0, timerNow - (parseServerTimestampMs(session.pauseStartedAt, timerNow) ?? timerNow))
         : 0)
     : 0;
+  const postProcessEntry = data.timeEntries.find((entry) => entry.id === postProcessEntryId) ?? null;
   const selectedStampProject = data.projects.find((project) => project.id === stampProjectId);
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
   const photoGalleryProject = data.projects.find((project) => project.id === photoGalleryProjectId);
+  const reschedulePlanningEntry = data.planning.find((entry) => entry.id === reschedulePlanningEntryId) ?? null;
   const activeProjectPhotoCounts = useMemo(() => {
     if (!session || session.mode !== "project") return { before: 0, after: 0 };
     return getProjectPhotoCounts(session.projectId);
@@ -1352,6 +1765,31 @@ function App() {
     [planningWeekStartKey]
   );
   const planningWeekEndKey = shiftDateKey(planningWeekStartKey, 6);
+  const appointmentWeekEntries = useMemo(() => {
+    return data.planning
+      .filter((entry) => {
+        if (entry.deletedAt) return false;
+        const key = normalizeDateKeyValue(entry.date);
+        return key >= planningWeekStartKey && key <= planningWeekEndKey && isPlanningEntryAssignedToActiveUser(entry);
+      })
+      .sort((a, b) => `${normalizeDateKeyValue(a.date)}${a.startTime}${a.title}`.localeCompare(`${normalizeDateKeyValue(b.date)}${b.startTime}${b.title}`));
+  }, [activeUser?.id, activeUser?.name, data.planning, planningWeekEndKey, planningWeekStartKey]);
+  const appointmentDays = useMemo(() => {
+    return utilizationDays.map((day) => {
+      const key = dateKey(day);
+      const entries = appointmentWeekEntries.filter((entry) => normalizeDateKeyValue(entry.date) === key);
+      const plannedHours = entries.reduce((sum, entry) => {
+        if (typeof entry.durationMinutes === "number") return sum + entry.durationMinutes / 60;
+        return sum + Math.max(0, (minutesFromTime(entry.endTime) - minutesFromTime(entry.startTime)) / 60);
+      }, 0);
+      const capacityHours = activeUser?.dailyWorkHours ?? 8;
+      const percent = capacityHours > 0 ? Math.round((plannedHours / capacityHours) * 100) : 0;
+      return { key, date: day, entries, plannedHours, capacityHours, percent, isWeekend: isWeekend(day) };
+    });
+  }, [activeUser?.dailyWorkHours, appointmentWeekEntries, utilizationDays]);
+  const selectedAppointmentDay = selectedAppointmentDayKey
+    ? appointmentDays.find((day) => day.key === selectedAppointmentDayKey)
+    : null;
   const utilizationRows = useMemo(() => {
     const groupNames = Array.from(
       new Set([
@@ -1405,6 +1843,24 @@ function App() {
       };
     });
   }, [allowedPlanningKeys, data.users, utilizationDays, visiblePlanning, visiblePlanningGroups]);
+  const dayPlanningEntries = useMemo(() => {
+    if (!selectedPlanningDay) return [];
+    return visiblePlanning
+      .filter((entry) => {
+        if (normalizeDateKeyValue(entry.date) !== selectedPlanningDay.dateKey) return false;
+        if (selectedPlanningDay.groupName === "Gesamt") return true;
+        return (
+          (entry.board || "OK solutions") === selectedPlanningDay.board &&
+          (entry.groupName || "Ohne Gruppe") === selectedPlanningDay.groupName
+        );
+      })
+      .sort((a, b) =>
+        `${a.startTime}${a.endTime}${a.employeeName || ""}${a.title}`.localeCompare(
+          `${b.startTime}${b.endTime}${b.employeeName || ""}${b.title}`,
+          "de"
+        )
+      );
+  }, [selectedPlanningDay, visiblePlanning]);
   const dayPlanningUsers = useMemo(() => {
     if (!selectedPlanningDay) return [];
     const groupUsers = data.users.filter((user) => {
@@ -1415,16 +1871,7 @@ function App() {
         (user.planningGroup || "Ohne Gruppe") === selectedPlanningDay.groupName
       );
     });
-    const plannedUsers = visiblePlanning
-      .filter((entry) => {
-        if (normalizeDateKeyValue(entry.date) !== selectedPlanningDay.dateKey) return false;
-        if (selectedPlanningDay.groupName === "Gesamt") return true;
-        return (
-          (entry.board || "OK solutions") === selectedPlanningDay.board &&
-          (entry.groupName || "Ohne Gruppe") === selectedPlanningDay.groupName
-        );
-      })
-      .map((entry) => ({
+    const plannedUsers = dayPlanningEntries.map((entry) => ({
         id: entry.employeeName || entry.userId || entry.id,
         name: entry.employeeName || "Nicht zugeordnet",
         dailyWorkHours: 8,
@@ -1434,7 +1881,7 @@ function App() {
       byName.set(user.name, { id: user.id, name: user.name, dailyWorkHours: user.dailyWorkHours });
     });
     return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name, "de"));
-  }, [data.users, selectedPlanningDay, visiblePlanning]);
+  }, [data.users, dayPlanningEntries, selectedPlanningDay]);
 
   function getStampStartPayload(user = activeUser) {
     if (!user) {
@@ -2151,7 +2598,7 @@ function App() {
 
   async function openProjectPhotoCamera(category: ProjectPhotoCategory, projectId = session?.projectId ?? "") {
     if (!projectId) return;
-    const entries = await loadProjectLogbookEntries();
+    const entries = await loadProjectLogbookEntries(true, projectId);
     const counts = getProjectPhotoCounts(projectId, entries);
     const count = category === "Vorherbilder" ? counts.before : counts.after;
     if (count >= 3) {
@@ -2163,6 +2610,95 @@ function App() {
     setPhotoCaptureTarget({ category, projectId });
     if (category === "Vorherbilder") beforePhotoInputRef.current?.click();
     else afterPhotoInputRef.current?.click();
+  }
+
+  async function openProjectPhotoGallery(projectId: string) {
+    if (!projectId) return;
+    setPhotoUploadError("");
+    await loadProjectLogbookEntries(true, projectId);
+    setPhotoGalleryProjectId(projectId);
+  }
+
+  function openPostProcessFinalInspection(entry: ProjectTimeEntry) {
+    resetCompletionState();
+    setPostProcessEntryId(entry.id);
+    setPostProcessError("");
+  }
+
+  function closePostProcessFinalInspection() {
+    if (isPostProcessing) return;
+    setPostProcessEntryId("");
+    setPostProcessError("");
+    resetCompletionState();
+  }
+
+  async function savePostProcessFinalInspection() {
+    if (!postProcessEntry || !activeUser) return;
+    if (postProcessEntry.mode !== "project") {
+      setPostProcessError("Endkontrolle ist nur für Projektzeiten möglich.");
+      return;
+    }
+    if (upsellAnswer === "yes" && !upsellNotes.trim()) {
+      setPostProcessError("Bitte eintragen, welche Zusatzverkaufsmöglichkeiten vorhanden sind.");
+      return;
+    }
+
+    setIsPostProcessing(true);
+    setPostProcessError("");
+    try {
+      await fetchJson("/api/final-inspections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: postProcessEntry.projectId,
+          projectLabel: postProcessEntry.projectLabel,
+          employee: postProcessEntry.employee,
+          comment: postProcessEntry.comment || "Nachbearbeitung per PWA",
+          status: finalInspectionByColleague ? "colleague" : "completed",
+          checklist: finalInspectionItems.map((label) => ({
+            label,
+            done: Boolean(finalChecklist[label]),
+          })),
+          upsellNotes: upsellAnswer === "yes" ? upsellNotes.trim() : "",
+        }),
+      });
+
+      const response = await fetch(endpoint("/api/project-time-entries"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...postProcessEntry,
+          actorUserId: activeUser.id,
+          completionStatus: "finished",
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          body?.error ??
+            "Endkontrolle wurde gespeichert, der Zeitstatus konnte aber nicht nachträglich gesetzt werden."
+        );
+      }
+
+      const updatedEntry = (await response.json()) as ProjectTimeEntry;
+      setData((current) => ({
+        ...current,
+        timeEntries: current.timeEntries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry)),
+      }));
+      setPostProcessEntryId("");
+      setPostProcessError("");
+      resetCompletionState();
+      await loadData(selectedUserId);
+    } catch (postProcessSaveError) {
+      setPostProcessError(
+        postProcessSaveError instanceof Error
+          ? postProcessSaveError.message
+          : "Nachbearbeitung konnte nicht gespeichert werden."
+      );
+    } finally {
+      setIsPostProcessing(false);
+    }
   }
 
   function previewProjectPhoto(category: ProjectPhotoCategory, file?: File) {
@@ -2198,7 +2734,7 @@ function App() {
 
   async function uploadProjectPhoto(category: ProjectPhotoCategory, file?: File, projectId = session?.projectId ?? "") {
     if (!file || !projectId) return false;
-    const entries = hasProjectLogbookLoadedRef.current ? data.projectLogbookEntries : await loadProjectLogbookEntries();
+    const entries = await loadProjectLogbookEntries(true, projectId);
     const counts = getProjectPhotoCounts(projectId, entries);
     const currentCount = category === "Vorherbilder" ? counts.before : counts.after;
     if (currentCount >= 3) {
@@ -2229,7 +2765,7 @@ function App() {
       });
       setData((current) => ({
         ...current,
-        projectLogbookEntries: [savedEntry, ...current.projectLogbookEntries],
+        projectLogbookEntries: mergeProjectLogbookEntries(current.projectLogbookEntries, [savedEntry]),
       }));
       setPhotoGalleryProjectId(projectId);
       return true;
@@ -2343,20 +2879,33 @@ function App() {
   }
 
   async function updateTaskStatus(task: Task, status: string) {
-    setData((current) => ({
-      ...current,
-      tasks: current.tasks.map((item) => (item.id === task.id ? { ...item, status } : item)),
-    }));
+    if (!activeUser) {
+      setTaskActionError("Bitte erst einen Mitarbeiter auswählen.");
+      return;
+    }
 
+    setIsTaskSaving(true);
+    setTaskActionError("");
     try {
-      await fetch(endpoint("/api/tasks"), {
+      const response = await fetch(endpoint("/api/tasks"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: task.id, status }),
+        body: JSON.stringify(buildTaskApiPayload(task, activeUser, status)),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error ?? "Aufgabenstatus konnte nicht aktualisiert werden.");
+      }
+
       await loadData(selectedUserId);
-    } catch {
+    } catch (statusError) {
+      setTaskActionError(
+        statusError instanceof Error ? statusError.message : "Aufgabenstatus konnte nicht aktualisiert werden."
+      );
       await loadData(selectedUserId);
+    } finally {
+      setIsTaskSaving(false);
     }
   }
 
@@ -2446,32 +2995,93 @@ function App() {
     }
   }
 
+  async function respondToTask(task: Task, response: "accepted" | "rejected") {
+    if (!activeUser) {
+      setTaskActionError("Bitte erst einen Mitarbeiter auswählen.");
+      return;
+    }
+
+    const reason =
+      response === "rejected" ? window.prompt("Bitte Begründung für die Ablehnung angeben:")?.trim() ?? "" : "";
+    if (response === "rejected" && !reason) {
+      setTaskActionError("Eine Aufgabe kann nur mit Begründung abgelehnt werden.");
+      return;
+    }
+
+    setIsTaskSaving(true);
+    setTaskActionError("");
+    try {
+      const apiResponse = await fetch(endpoint("/api/tasks/respond"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: task.id,
+          actorId: activeUser.id,
+          response,
+          reason,
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json().catch(() => null);
+        throw new Error(errorData?.error ?? "Antwort konnte nicht gespeichert werden.");
+      }
+
+      await loadData(selectedUserId);
+    } catch (responseError) {
+      setTaskActionError(
+        responseError instanceof Error ? responseError.message : "Antwort konnte nicht gespeichert werden."
+      );
+      await loadData(selectedUserId);
+    } finally {
+      setIsTaskSaving(false);
+    }
+  }
+
   async function createQuickTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = newTaskTitle.trim();
     if (!title || !activeUser) return;
 
-    const deadline = new Date();
-    deadline.setHours(17, 0, 0, 0);
-
+    setTaskActionError("");
+    setIsTaskSaving(true);
     try {
-      await fetch(endpoint("/api/tasks"), {
+      const response = await fetch(endpoint("/api/tasks"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          titel: title,
-          beschreibung: "",
+          actorId: activeUser.id,
+          title,
+          description: "",
           status: "offen",
-          prioritaet: "normal",
-          zustaendigId: activeUser.id,
-          faelligkeit: deadline.toISOString().slice(0, 16),
+          priority: "normal",
+          tradeId: null,
+          ownerId: activeUser.id,
+          deadline: defaultTaskDeadline(),
+          customer: "",
+          customerClass: null,
+          projectId: null,
+          autoFeedbackEnabled: false,
+          autoFeedbackRecipientId: null,
+          recurrenceEnabled: false,
+          recurrenceInterval: null,
+          estimateMinutes: null,
+          planningAllocations: [],
+          absenceHandoverTask: false,
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error ?? "Aufgabe konnte nicht angelegt werden.");
+      }
+
       setNewTaskTitle("");
       await loadData(selectedUserId);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Aufgabe konnte nicht angelegt werden.");
-      setState("error");
+      setTaskActionError(createError instanceof Error ? createError.message : "Aufgabe konnte nicht angelegt werden.");
+    } finally {
+      setIsTaskSaving(false);
     }
   }
 
@@ -2557,6 +3167,144 @@ function App() {
     if (!entry.projectId) return;
     setSelectedProjectId(entry.projectId);
     setActiveSection("projects");
+  }
+
+  function canReschedulePlanningEntry(entry: PlanningEntry) {
+    if (!canUsePlanningSection) return false;
+    if (canUseCompanyTimeView) return true;
+    return allowedPlanningKeys.has(planningKey(entry.board, entry.groupName));
+  }
+
+  function openPlanningReschedule(entry: PlanningEntry) {
+    if (!canReschedulePlanningEntry(entry)) {
+      setRescheduleError("Du darfst nur Termine deiner Planungsgruppe umplanen.");
+      return;
+    }
+    setReschedulePlanningEntryId(entry.id);
+    setRescheduleDate(normalizeDateKeyValue(entry.date));
+    setRescheduleStartTime(entry.startTime);
+    setRescheduleEndTime(entry.endTime);
+    setRescheduleError("");
+  }
+
+  function closePlanningReschedule() {
+    if (isReschedulingPlanning) return;
+    setReschedulePlanningEntryId("");
+    setRescheduleError("");
+  }
+
+  async function savePlanningReschedule() {
+    if (!reschedulePlanningEntry || !activeUser) return;
+    if (!canReschedulePlanningEntry(reschedulePlanningEntry)) {
+      setRescheduleError("Du darfst nur Termine deiner Planungsgruppe umplanen.");
+      return;
+    }
+    if (!rescheduleDate || !rescheduleStartTime || !rescheduleEndTime) {
+      setRescheduleError("Bitte Datum, Startzeit und Endzeit ausfüllen.");
+      return;
+    }
+    if (minutesFromTime(rescheduleStartTime) >= minutesFromTime(rescheduleEndTime)) {
+      setRescheduleError("Die Endzeit muss nach der Startzeit liegen.");
+      return;
+    }
+
+    const matchedEntries = getPlanningEntryMatchedTimeEntries(reschedulePlanningEntry);
+    if (
+      matchedEntries.length > 0 &&
+      !window.confirm("Für diesen Termin gibt es bereits eine Stempelung. Trotzdem nur Datum/Uhrzeit umplanen?")
+    ) {
+      return;
+    }
+
+    const durationMinutes = Math.max(0, minutesFromTime(rescheduleEndTime) - minutesFromTime(rescheduleStartTime));
+    setIsReschedulingPlanning(true);
+    setRescheduleError("");
+    try {
+      const response = await fetch(endpoint("/api/planning-entries"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...reschedulePlanningEntry,
+          actorUserId: activeUser.id,
+          date: rescheduleDate,
+          startTime: rescheduleStartTime,
+          endTime: rescheduleEndTime,
+          durationMinutes,
+          approvalStatus: reschedulePlanningEntry.approvalStatus || "confirmed",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error ?? "Termin konnte nicht umgeplant werden.");
+      }
+
+      const updatedEntry = (await response.json()) as PlanningEntry;
+      setData((current) => ({
+        ...current,
+        planning: current.planning
+          .map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry))
+          .sort((a, b) => `${normalizeDateKeyValue(a.date)}${a.startTime}`.localeCompare(`${normalizeDateKeyValue(b.date)}${b.startTime}`)),
+      }));
+      setSelectedPlanningDay((current) =>
+        current && current.dateKey === normalizeDateKeyValue(reschedulePlanningEntry.date)
+          ? { ...current, dateKey: normalizeDateKeyValue(updatedEntry.date) }
+          : current
+      );
+      setReschedulePlanningEntryId("");
+      await refreshPlanningData();
+    } catch (saveError) {
+      setRescheduleError(saveError instanceof Error ? saveError.message : "Termin konnte nicht umgeplant werden.");
+    } finally {
+      setIsReschedulingPlanning(false);
+    }
+  }
+
+  async function openNotificationTargetData(target: string, targetId: string) {
+    setNotificationActionError("");
+    if (!target || !targetId) return;
+
+    if (target === "task") {
+      const task = data.tasks.find((item) => item.id === targetId);
+      setActiveSection("tasks");
+      setIsNotificationsOpen(false);
+      if (task) openTaskDetail(task.id);
+      return;
+    }
+
+    if (target === "absence-request") {
+      setActiveSection("personal");
+      setIsNotificationsOpen(false);
+      return;
+    }
+
+    if (target === "planning-entry" || target === "planning-entry-overlap") {
+      const entry = data.planning.find((item) => item.id === targetId);
+      if (entry) {
+        setHomePlanningDateKey(normalizeDateKeyValue(entry.date));
+        setSelectedAppointmentDayKey(normalizeDateKeyValue(entry.date));
+      }
+      setActiveSection(canUsePlanningSection ? "planning" : "appointments");
+      setIsNotificationsOpen(false);
+      return;
+    }
+
+    if (target === "project-logbook" || target === "project") {
+      const project = data.projects.find((item) => item.id === targetId);
+      setSelectedProjectId(targetId);
+      setActiveSection("projects");
+      setIsNotificationsOpen(false);
+      if (project || target === "project-logbook") {
+        await loadProjectLogbookEntries(true, targetId);
+      }
+      return;
+    }
+  }
+
+  async function openNotificationTarget(notification: Notification) {
+    const target = notification.linkTarget || (notification.taskId ? "task" : "");
+    const targetId = notification.linkTargetId || notification.taskId || "";
+    await openNotificationTargetData(target, targetId);
   }
 
   function renderSwitchSuggestion(entry: PlanningEntry, label: string) {
@@ -2758,6 +3506,29 @@ function App() {
     );
   }
 
+  function renderTimeIssueActions(entry: ProjectTimeEntry) {
+    if (timeIssueFilter === "photos") {
+      if (!entry.projectId) {
+        return <small className="timeIssueHint">Projekt nicht verknüpft</small>;
+      }
+      return (
+        <button type="button" className="timeIssueAction" onClick={() => void openProjectPhotoGallery(entry.projectId)}>
+          Bilddoku öffnen
+        </button>
+      );
+    }
+
+    if (timeIssueFilter === "final") {
+      return (
+        <button type="button" className="timeIssueAction" onClick={() => openPostProcessFinalInspection(entry)}>
+          Endkontrolle nachholen
+        </button>
+      );
+    }
+
+    return null;
+  }
+
   const canShowNextStampStep =
     completionAction === "switch" && (!session || session.mode !== "project" || Boolean(workCompletionStatus));
 
@@ -2817,7 +3588,7 @@ function App() {
       <aside className="sidebar">
         <img className="brand" src="/workpilot360-logo-wide.png" alt="WorkPilot360" />
         <nav className="navList" aria-label="Bereiche">
-          {sections.map((section) => {
+          {visibleSections.map((section) => {
             const Icon = section.icon;
             return (
               <button
@@ -2843,7 +3614,7 @@ function App() {
           <img className="topbarLogo" src="/workpilot360-logo-header.png" alt="WorkPilot360" />
           <div className="topbarTitle">
             <p className="eyebrow">WorkPilot360 PWA</p>
-            <h1>{sections.find((section) => section.id === activeSection)?.label}</h1>
+            <h1>{visibleSections.find((section) => section.id === activeSection)?.label ?? "WorkPilot360"}</h1>
           </div>
           <div className="topbarActions">
             {activeSection !== "home" && (
@@ -2856,6 +3627,21 @@ function App() {
                 />
               </label>
             )}
+            <button
+              className={`iconButton notificationButton ${unreadNotifications.length ? "active" : ""}`}
+              type="button"
+              onClick={() => {
+                setIsNotificationsOpen(true);
+                setShowNotificationHistory(false);
+                setNotificationSearchTerm("");
+                void loadNotifications();
+              }}
+              title="Benachrichtigungen"
+              aria-label="Benachrichtigungen"
+            >
+              <Bell size={18} />
+              {unreadNotifications.length > 0 && <span>{unreadNotifications.length}</span>}
+            </button>
             <div className="currentUserBadge" title={loginUser.email}>
               {activeUser?.profileImageDataUrl ? (
                 <img src={activeUser.profileImageDataUrl} alt="" />
@@ -2901,7 +3687,7 @@ function App() {
                   <h2>Heute eingeplant</h2>
                 </div>
                 <div className="panelHeaderActions">
-                  <button type="button" onClick={refreshPlanningData} title="Planung aktualisieren">
+                  <button type="button" onClick={() => void refreshHomePlanningData()} title="Planung und Bilder aktualisieren">
                     <RefreshCcw size={17} />
                   </button>
                   <CalendarDays size={20} />
@@ -2957,7 +3743,7 @@ function App() {
                         showTargetProgress ? "withProgress" : ""
                       } ${
                         isCurrentSession ? "currentSession" : ""
-                      }`}
+                      } ${planningStatus}`}
                       key={entry.id}
                     >
                       {showTargetProgress && (
@@ -3352,7 +4138,10 @@ function App() {
                     type="button"
                     key={period}
                     className={timePeriod === period ? "active" : ""}
-                    onClick={() => setTimePeriod(period)}
+                    onClick={() => {
+                      setTimePeriod(period);
+                      setTimeIssueFilter("");
+                    }}
                   >
                     {label}
                   </button>
@@ -3396,6 +4185,7 @@ function App() {
                                   >
                                     {isInterrupted ? "Unterbrochen" : isProject ? "Projekt" : "Unproduktiv"}
                                   </span>
+                                  {renderTimeIssueActions(entry)}
                                 </div>
                               </article>
                             );
@@ -3448,6 +4238,7 @@ function App() {
                                         >
                                           {isInterrupted ? "Unterbrochen" : isProject ? "Projekt" : "Unproduktiv"}
                                         </span>
+                                        {renderTimeIssueActions(entry)}
                                       </div>
                                     </article>
                                   );
@@ -3465,35 +4256,56 @@ function App() {
             <div className="panel">
               <div className="panelHeader">
                 <div>
-                  <p className="eyebrow">Prüfung</p>
-                  <h2>Hinweise</h2>
+                  <p className="eyebrow">Nacharbeit</p>
+                  <h2>Offene Punkte</h2>
                 </div>
                 <Clock3 size={20} />
               </div>
               <div className="timeAlertList">
-                <article className={interruptedTimeEntries.length ? "timeAlert warning" : "timeAlert ok"}>
+                <button
+                  className={`timeAlert ${interruptedTimeEntries.length ? "warning" : "ok"} ${timeIssueFilter === "interrupted" ? "selected" : ""}`}
+                  type="button"
+                  onClick={() => setTimeIssueFilter(timeIssueFilter === "interrupted" ? "" : "interrupted")}
+                >
                   <span>Unterbrochene Arbeiten</span>
                   <strong>{interruptedTimeEntries.length}</strong>
                   <small>
                     {interruptedTimeEntries.length
-                      ? "Diese Einträge sollten später fortgeführt oder fachlich abgeschlossen werden."
+                      ? "Anklicken zeigt nur Arbeiten, die fortgeführt oder fachlich abgeschlossen werden sollten."
                       : "Keine offenen Unterbrechungen im gewählten Bereich."}
                   </small>
-                </article>
-                <article className={missingCommentTimeEntries.length ? "timeAlert warning" : "timeAlert ok"}>
-                  <span>Ohne Kommentar</span>
-                  <strong>{missingCommentTimeEntries.length}</strong>
+                </button>
+                <button
+                  className={`timeAlert ${photoDocumentationTimeEntries.length ? "warning" : "ok"} ${timeIssueFilter === "photos" ? "selected" : ""}`}
+                  type="button"
+                  onClick={() => setTimeIssueFilter(timeIssueFilter === "photos" ? "" : "photos")}
+                >
+                  <span>Bilddoku offen</span>
+                  <strong>{photoDocumentationTimeEntries.length}</strong>
                   <small>
-                    {missingCommentTimeEntries.length
-                      ? "Diese Zeiten sind für Nachvollziehbarkeit und Abrechnung dünn dokumentiert."
-                      : "Alle Zeiten haben eine Tätigkeitsnotiz."}
+                    {photoDocumentationTimeEntries.length
+                      ? "Anklicken zeigt Projektzeiten, bei denen Vorher- oder Nachherbilder fehlen."
+                      : "Für die Projektzeiten im Bereich ist die Bilddoku vollständig."}
                   </small>
-                </article>
-                <article className={session ? "timeAlert active" : "timeAlert ok"}>
-                  <span>Live-Stempelung</span>
-                  <strong>{session ? "läuft" : "aus"}</strong>
-                  <small>{session ? session.projectLabel : "Aktuell ist keine zentrale Session aktiv."}</small>
-                </article>
+                </button>
+                <button
+                  className={`timeAlert ${finalInspectionReviewTimeEntries.length ? "warning" : "ok"} ${timeIssueFilter === "final" ? "selected" : ""}`}
+                  type="button"
+                  onClick={() => setTimeIssueFilter(timeIssueFilter === "final" ? "" : "final")}
+                >
+                  <span>Endkontrolle prüfen</span>
+                  <strong>{finalInspectionReviewTimeEntries.length}</strong>
+                  <small>
+                    {finalInspectionReviewTimeEntries.length
+                      ? "Anklicken zeigt Projektzeiten ohne eindeutigen Abschlussstatus."
+                      : "Alle Projektzeiten im Bereich haben einen Abschlussstatus."}
+                  </small>
+                </button>
+                {timeIssueFilter ? (
+                  <button className="timeIssueReset" type="button" onClick={() => setTimeIssueFilter("")}>
+                    Filter zurücksetzen
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -3583,10 +4395,11 @@ function App() {
                   </button>
                 ))}
               </div>
+              {taskActionError ? <div className="taskActionError">{taskActionError}</div> : null}
               <div className="taskList">
                 {visibleTasks.map((task) => (
                   <article className="taskCard" key={task.id}>
-                    <button className="taskOpenArea" type="button" onClick={() => setSelectedTaskId(task.id)}>
+                    <button className="taskOpenArea" type="button" onClick={() => openTaskDetail(task.id)}>
                       <div className="taskCardTop">
                         <span className={`badge ${statusClass(task.status)}`}>{taskStatusLabel(task)}</span>
                         <span className={`taskPriority ${taskPriorityClass(task)}`}>
@@ -3601,25 +4414,36 @@ function App() {
                       </div>
                     </button>
                     <div className="taskActions">
-                      {isOpenTask(task) && normalizedText(task.status) !== "in bearbeitung" ? (
-                        <button type="button" onClick={() => updateTaskStatus(task, "in Bearbeitung")}>
-                          <Clock3 size={16} />
-                          In Arbeit
-                        </button>
-                      ) : null}
-                      {isOpenTask(task) && normalizedText(task.status) === "in bearbeitung" ? (
-                        <button type="button" onClick={() => updateTaskStatus(task, "wartet auf Rückmeldung")}>
-                          <Clock3 size={16} />
-                          Warten
-                        </button>
-                      ) : null}
-                      {isOpenTask(task) ? (
-                        <button type="button" onClick={() => updateTaskStatus(task, "erledigt")}>
+                      {canRespondToTask(task) ? (
+                        <button type="button" onClick={() => respondToTask(task, "accepted")} disabled={isTaskSaving}>
                           <CheckCircle2 size={16} />
-                          Erledigt
+                          Annehmen
                         </button>
+                      ) : null}
+                      {canRespondToTask(task) ? (
+                        <button type="button" onClick={() => respondToTask(task, "rejected")} disabled={isTaskSaving}>
+                          Ablehnen
+                        </button>
+                      ) : null}
+                      {!canRespondToTask(task) && isOpenTask(task) ? (
+                        availableTaskStatusActions(task).map((action) => (
+                          <button
+                            className={normalizedText(action.status) === "erledigt" ? "statusDone" : ""}
+                            key={action.status}
+                            type="button"
+                            onClick={() => updateTaskStatus(task, action.status)}
+                            disabled={isTaskSaving}
+                          >
+                            {normalizedText(action.status) === "erledigt" ? (
+                              <CheckCircle2 size={16} />
+                            ) : (
+                              <Clock3 size={16} />
+                            )}
+                            {action.label}
+                          </button>
+                        ))
                       ) : (
-                        <button type="button" onClick={() => setSelectedTaskId(task.id)}>
+                        <button type="button" onClick={() => openTaskDetail(task.id)}>
                           Details
                         </button>
                       )}
@@ -3645,93 +4469,112 @@ function App() {
                   ×
                 </button>
               </div>
-              <div className="taskDetailChips">
-                <span className={`badge ${statusClass(selectedTask.status)}`}>{taskStatusLabel(selectedTask)}</span>
-                <span className={`taskPriority ${taskPriorityClass(selectedTask)}`}>
-                  {taskPriorityLabel(selectedTask)}
-                </span>
-                {isTaskOverdue(selectedTask) ? <span className="badge danger">überfällig</span> : null}
+              <div className="taskStatusPanel">
+                {canRespondToTask(selectedTask) ? (
+                  <div className="taskDialogActions">
+                    <button type="button" onClick={() => respondToTask(selectedTask, "accepted")} disabled={isTaskSaving}>
+                      <CheckCircle2 size={16} />
+                      Annehmen
+                    </button>
+                    <button type="button" onClick={() => respondToTask(selectedTask, "rejected")} disabled={isTaskSaving}>
+                      Ablehnen
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`taskStatusSelectField ${statusClass(selectedTask.status)}`}>
+                    <span>Status</span>
+                    <select
+                      value={
+                        TASK_STATUS_ACTIONS.find(
+                          (action) => normalizedText(action.status) === normalizedText(selectedTask.status)
+                        )?.status ?? "offen"
+                      }
+                      onChange={(event) => updateTaskStatus(selectedTask, event.target.value)}
+                      disabled={isTaskSaving}
+                    >
+                      {TASK_STATUS_ACTIONS.map((action) => (
+                        <option key={action.status} value={action.status}>
+                          {action.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
-              <div className="taskDetailGrid">
-                <Detail label="Zuständig" value={selectedTask.zustaendig || "Nicht zugewiesen"} />
-                <Detail label="Fällig" value={formatDateTime(selectedTask.faelligkeit)} />
-                <Detail label="Kunde" value={selectedTask.kunde || "-"} />
-                <Detail label="Projekt" value={selectedTask.projectLabel || selectedTask.projectId || "-"} />
-                <Detail label="Gewerk" value={selectedTask.gewerk || "-"} />
-                <Detail label="Angelegt von" value={selectedTask.createdByName || "-"} />
-                <Detail label="Angelegt am" value={formatDateTime(selectedTask.createdAt)} />
+              <div className="taskQuickSummary">
+                <div>
+                  <span>Fällig</span>
+                  <strong>{formatDateTime(selectedTask.faelligkeit)}</strong>
+                  {isTaskOverdue(selectedTask) ? <em>überfällig</em> : null}
+                </div>
+                <div>
+                  <span>Zuständig</span>
+                  <strong>{selectedTask.zustaendig || "Nicht zugewiesen"}</strong>
+                </div>
+                <div>
+                  <span>Priorität</span>
+                  <strong>{taskPriorityLabel(selectedTask)}</strong>
+                </div>
               </div>
               <div className="taskReadonlyField">
                 <span>Beschreibung</span>
                 <p>{selectedTask.beschreibung || "Keine Beschreibung hinterlegt."}</p>
               </div>
-              <div className="taskDialogActions">
-                {isOpenTask(selectedTask) ? (
-                  <>
-                    <button type="button" onClick={() => updateTaskStatus(selectedTask, "in Bearbeitung")}>
-                      <Clock3 size={16} />
-                      In Arbeit
-                    </button>
-                    <button type="button" onClick={() => updateTaskStatus(selectedTask, "wartet auf Rückmeldung")}>
-                      <Clock3 size={16} />
-                      Warten
-                    </button>
-                    <button type="button" onClick={() => updateTaskStatus(selectedTask, "erledigt")}>
-                      <CheckCircle2 size={16} />
-                      Erledigt
-                    </button>
-                  </>
-                ) : normalizedText(selectedTask.status) === "erledigt" ? (
-                  <button type="button" onClick={() => updateTaskStatus(selectedTask, "offen")}>
-                    Wieder öffnen
-                  </button>
-                ) : (
-                  <button type="button" onClick={() => setSelectedTaskId("")}>
-                    Nur anzeigen
-                  </button>
-                )}
-              </div>
               {taskActionError ? <div className="taskActionError">{taskActionError}</div> : null}
-              <div className="taskDetailSection">
-                <h3>Aufgabenbeteiligte</h3>
-                <div className="taskParticipantControls">
-                  <select
-                    value={taskParticipantUserId}
-                    onChange={(event) => setTaskParticipantUserId(event.target.value)}
-                    disabled={isTaskSaving || selectedTaskAssignableUsers.length === 0}
-                  >
-                    <option value="">
-                      {selectedTaskAssignableUsers.length ? "Kollegen hinzufügen" : "Keine weiteren Personen verfügbar"}
-                    </option>
-                    {selectedTaskAssignableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name} {user.roleLabel ? `· ${user.roleLabel}` : ""}
-                      </option>
-                    ))}
-                  </select>
+              <div className="taskDetailTabs" role="tablist" aria-label="Aufgabendetails">
+                {[
+                  { id: "comments" as const, label: "Kommentare", count: selectedTask.kommentare?.length ?? 0 },
+                  { id: "participants" as const, label: "Beteiligte", count: (selectedTask.participants?.length ?? 0) + 1 },
+                  { id: "details" as const, label: "Details" },
+                  { id: "history" as const, label: "Historie", count: selectedTask.history?.length ?? 0 },
+                ].map((tab) => (
                   <button
+                    className={taskDetailTab === tab.id ? "active" : ""}
+                    key={tab.id}
                     type="button"
-                    onClick={addTaskParticipant}
-                    disabled={!taskParticipantUserId || isTaskSaving}
+                    onClick={() => setTaskDetailTab(tab.id)}
                   >
-                    Hinzufügen
+                    <span>{tab.label}</span>
+                    {typeof tab.count === "number" ? <strong>{tab.count}</strong> : null}
                   </button>
-                </div>
-                <div className="taskChipList">
-                  <span className="taskInfoChip strong">
-                    Zuständig: {selectedTask.zustaendig || "Nicht zugewiesen"}
-                  </span>
-                  {(selectedTask.participants ?? []).map((participant) => (
-                    <span className="taskInfoChip" key={participant.id}>
-                      {participant.name || participant.userName || "Beteiligte Person"}
-                      {participant.roleLabel || participant.role ? ` · ${participant.roleLabel || participant.role}` : ""}
-                      {participant.acceptanceStatus ? ` · ${participant.acceptanceStatus}` : ""}
-                    </span>
-                  ))}
-                </div>
+                ))}
               </div>
-              <div className="taskDetailSection">
+              {taskDetailTab === "comments" ? (
+                <div className="taskDetailSection">
                 <h3>Kommentare</h3>
+                {(selectedTask.kommentare ?? []).length ? (
+                  <div className="taskChatList">
+                    {[...(selectedTask.kommentare ?? [])]
+                      .sort((first, second) => {
+                        const firstTime = new Date(first.createdAt || first.erstelltAm || "").getTime();
+                        const secondTime = new Date(second.createdAt || second.erstelltAm || "").getTime();
+                        return (Number.isFinite(firstTime) ? firstTime : 0) - (Number.isFinite(secondTime) ? secondTime : 0);
+                      })
+                      .map((comment) => {
+                        const author = comment.authorName || comment.autor || "Unbekannt";
+                        const isOwnComment = normalizedText(author) === normalizedText(activeUser?.name);
+                        return (
+                          <article className={isOwnComment ? "taskChatMessage own" : "taskChatMessage"} key={comment.id}>
+                            <div className="taskChatAvatar" aria-hidden="true">
+                              {author.slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="taskChatBubble">
+                              <div className="taskChatMeta">
+                                <strong>
+                                  {author}
+                                  {comment.recipientName ? ` an ${comment.recipientName}` : ""}
+                                </strong>
+                                <span>{formatDateTime(comment.createdAt || comment.erstelltAm)}</span>
+                              </div>
+                              <p>{comment.text}</p>
+                            </div>
+                          </article>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <Empty text="Noch keine Kommentare vorhanden." />
+                )}
                 <form className="taskCommentForm" onSubmit={addTaskComment}>
                   <select
                     value={taskCommentRecipientId}
@@ -3746,50 +4589,89 @@ function App() {
                     ))}
                   </select>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={taskCommentText}
                     onChange={(event) => setTaskCommentText(event.target.value)}
                     placeholder="Kommentar schreiben"
                     disabled={isTaskSaving}
                   />
                   <button type="submit" disabled={!taskCommentText.trim() || isTaskSaving}>
-                    Kommentar speichern
+                    <Send size={15} />
+                    Senden
                   </button>
                 </form>
-                {(selectedTask.kommentare ?? []).length ? (
-                  <div className="taskTimeline">
-                    {(selectedTask.kommentare ?? []).map((comment) => (
-                      <div key={comment.id}>
-                        <strong>
-                          {comment.authorName || comment.autor || "Unbekannt"}
-                          {comment.recipientName ? ` an ${comment.recipientName}` : ""}
-                        </strong>
-                        <span>{formatDateTime(comment.createdAt || comment.erstelltAm)}</span>
-                        <p>{comment.text}</p>
-                      </div>
+                </div>
+              ) : null}
+              {taskDetailTab === "participants" ? (
+                <div className="taskDetailSection">
+                  <h3>Aufgabenbeteiligte</h3>
+                  <div className="taskChipList">
+                    <span className="taskInfoChip strong">
+                      Zuständig: {selectedTask.zustaendig || "Nicht zugewiesen"}
+                    </span>
+                    {(selectedTask.participants ?? []).map((participant) => (
+                      <span className="taskInfoChip" key={participant.id}>
+                        {participant.name || participant.userName || "Beteiligte Person"}
+                        {participant.roleLabel || participant.role ? ` · ${participant.roleLabel || participant.role}` : ""}
+                        {participant.acceptanceStatus ? ` · ${participant.acceptanceStatus}` : ""}
+                      </span>
                     ))}
                   </div>
-                ) : (
-                  <Empty text="Noch keine Kommentare vorhanden." />
-                )}
-              </div>
-              {selectedTask.history?.length ? (
-                <div className="taskDetailSection">
-                  <h3>Historie</h3>
-                  <div className="taskTimeline">
-                    {selectedTask.history.slice(0, 5).map((entry) => (
-                      <div key={entry.id}>
-                        <strong>{entry.event}</strong>
-                        <span>{[entry.actorName, formatDateTime(entry.at || entry.createdAt)].filter(Boolean).join(" · ")}</span>
-                        {entry.note ? <p>{entry.note}</p> : null}
-                      </div>
-                    ))}
+                  <div className="taskParticipantControls">
+                    <select
+                      value={taskParticipantUserId}
+                      onChange={(event) => setTaskParticipantUserId(event.target.value)}
+                      disabled={isTaskSaving || selectedTaskAssignableUsers.length === 0}
+                    >
+                      <option value="">
+                        {selectedTaskAssignableUsers.length ? "Kollegen hinzufügen" : "Keine weiteren Personen verfügbar"}
+                      </option>
+                      {selectedTaskAssignableUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name} {user.roleLabel ? `· ${user.roleLabel}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={addTaskParticipant}
+                      disabled={!taskParticipantUserId || isTaskSaving}
+                    >
+                      Hinzufügen
+                    </button>
                   </div>
                 </div>
               ) : null}
-              <button className="dialogCancel" type="button" onClick={() => setSelectedTaskId("")}>
-                Schließen
-              </button>
+              {taskDetailTab === "details" ? (
+                <div className="taskDetailSection">
+                  <h3>Details</h3>
+                  <div className="taskMetaList">
+                    <Detail label="Projekt" value={selectedTask.projectLabel || selectedTask.projectId || "-"} />
+                    <Detail label="Kunde" value={selectedTask.kunde || "-"} />
+                    <Detail label="Gewerk" value={selectedTask.gewerk || "-"} />
+                    <Detail label="Angelegt von" value={selectedTask.createdByName || "-"} />
+                    <Detail label="Angelegt am" value={formatDateTime(selectedTask.createdAt)} />
+                  </div>
+                </div>
+              ) : null}
+              {taskDetailTab === "history" ? (
+                <div className="taskDetailSection taskHistorySection">
+                  <h3>Historie</h3>
+                  {selectedTask.history?.length ? (
+                    <div className="taskHistoryTimeline">
+                      {selectedTask.history.slice(0, 8).map((entry) => (
+                        <div key={entry.id}>
+                          <strong>{entry.event}</strong>
+                          <span>{[entry.actorName, formatDateTime(entry.at || entry.createdAt)].filter(Boolean).join(" · ")}</span>
+                          {entry.note ? <p>{entry.note}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty text="Noch keine Historie vorhanden." />
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -3921,7 +4803,170 @@ function App() {
           </section>
         )}
 
-        {activeSection === "planning" && (
+        {activeSection === "appointments" && (
+          <section className="contentGrid single">
+            <div className="panel wide planningBoardPanel mobilePlanningPanel">
+              {!selectedAppointmentDay ? (
+                <>
+                  <div className="panelHeader">
+                    <div>
+                      <p className="eyebrow">{appointmentWeekEntries.length} Termine</p>
+                      <h2>Meine Termine</h2>
+                    </div>
+                    <CalendarCheck size={20} />
+                  </div>
+                  <div className="mobilePlanningIntro">
+                    <div>
+                      <strong>
+                        Woche {formatDate(planningWeekStartKey)} - {formatDate(planningWeekEndKey)}
+                      </strong>
+                      <span>Tippe auf einen Tag, um deine Termine im Detail zu öffnen.</span>
+                    </div>
+                    <div className="planningWeekNav">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlanningWeekStartKey((current) => shiftDateKey(current, -7));
+                          setSelectedAppointmentDayKey("");
+                        }}
+                      >
+                        Zurück
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlanningWeekStartKey(startOfWeekKey());
+                          setSelectedAppointmentDayKey("");
+                        }}
+                      >
+                        Heute
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlanningWeekStartKey((current) => shiftDateKey(current, 7));
+                          setSelectedAppointmentDayKey("");
+                        }}
+                      >
+                        Vor
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mobileUtilizationList" aria-label="Meine Termine">
+                    <section className="mobileUtilizationBoard">
+                      <header>
+                        <strong>{activeUser?.name || "Meine Termine"}</strong>
+                        <span>
+                          {appointmentWeekEntries
+                            .reduce((sum, entry) => {
+                              if (typeof entry.durationMinutes === "number") return sum + entry.durationMinutes / 60;
+                              return sum + Math.max(0, (minutesFromTime(entry.endTime) - minutesFromTime(entry.startTime)) / 60);
+                            }, 0)
+                            .toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+                          h geplant
+                        </span>
+                      </header>
+                      <div className="mobileUtilizationDays">
+                        {appointmentDays.map((day) => {
+                          const load = day.percent >= 100 ? "high" : day.percent >= 70 ? "medium" : "low";
+                          return (
+                            <button
+                              type="button"
+                              className={day.isWeekend ? "mobileUtilizationDay weekend" : "mobileUtilizationDay"}
+                              data-load={load}
+                              key={day.key}
+                              onClick={() => setSelectedAppointmentDayKey(day.key)}
+                            >
+                              <span className="mobileUtilizationDate">
+                                <strong>{weekdayLabel(day.date).toUpperCase()}</strong>
+                                <small>{formatDate(day.date.toISOString()).replace(/\.$/, "")}</small>
+                              </span>
+                              {day.isWeekend && day.entries.length === 0 ? (
+                                <span className="mobileUtilizationWeekendText">Wochenende</span>
+                              ) : (
+                                <span className="mobileUtilizationLoad">
+                                  <span className="mobileUtilizationTopline">
+                                    <span className="mobileUtilizationProgress" aria-hidden="true">
+                                      <i style={{ width: `${Math.min(100, day.percent)}%` }} />
+                                    </span>
+                                    <strong>{day.percent}%</strong>
+                                  </span>
+                                  <small>
+                                    {day.entries.length} Termin{day.entries.length === 1 ? "" : "e"} |{" "}
+                                    {day.plannedHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h
+                                  </small>
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  </div>
+                </>
+              ) : (
+                <div className="dayPlanningPanel mobileDayPlanning">
+                  <div className="dayPlanningHeader">
+                    <div>
+                      <p className="eyebrow">Meine Termine</p>
+                      <h2>{longDateLabel(selectedAppointmentDay.key)}</h2>
+                      <span>
+                        {selectedAppointmentDay.entries.length} Termin
+                        {selectedAppointmentDay.entries.length === 1 ? "" : "e"}
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => setSelectedAppointmentDayKey("")}>
+                      Zurück
+                    </button>
+                  </div>
+                  <div className="mobileDayWorkerList">
+                    <article className="mobileWorkerPlan">
+                      <header>
+                        <div>
+                          <strong>{activeUser?.name || "Meine Termine"}</strong>
+                          <span className={selectedAppointmentDay.percent >= 100 ? "overload" : ""}>
+                            {selectedAppointmentDay.percent}% ausgelastet ·{" "}
+                            {selectedAppointmentDay.plannedHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h von{" "}
+                            {selectedAppointmentDay.capacityHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h
+                          </span>
+                        </div>
+                        <i>
+                          <b style={{ width: `${Math.min(100, selectedAppointmentDay.percent)}%` }} />
+                        </i>
+                      </header>
+                      <div className="mobileWorkerEntries">
+                        {selectedAppointmentDay.entries.map((entry) => (
+                          <button
+                            className="mobileWorkerEntry"
+                            key={entry.id}
+                            type="button"
+                            onClick={() => entry.projectId && openProjectFromPlanning(entry)}
+                            disabled={!entry.projectId}
+                          >
+                            <time>
+                              {entry.startTime}
+                              <span>{entry.endTime}</span>
+                            </time>
+                            <div>
+                              <strong>{entry.title}</strong>
+                              <span>{entry.projectLabel || entry.customer || entry.groupName}</span>
+                            </div>
+                            <small className={`badge ${statusClass(entry.approvalStatus)}`}>
+                              {entry.approvalStatus || "confirmed"}
+                            </small>
+                          </button>
+                        ))}
+                        {selectedAppointmentDay.entries.length === 0 && <Empty text="Keine eigenen Termine an diesem Tag." />}
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeSection === "planning" && canUsePlanningSection && (
           <section className="contentGrid single">
             <div className="panel wide planningBoardPanel mobilePlanningPanel">
               {!selectedPlanningDay ? (
@@ -4043,71 +5088,136 @@ function App() {
                       Zurück
                     </button>
                   </div>
-                  <div className="mobileDayWorkerList">
-                    {dayPlanningUsers.map((user) => {
-                      const entries = visiblePlanning
-                        .filter((entry) => {
-                          if (normalizeDateKeyValue(entry.date) !== selectedPlanningDay.dateKey) return false;
-                          if (
-                            selectedPlanningDay.groupName !== "Gesamt" &&
-                            ((entry.board || "OK solutions") !== selectedPlanningDay.board ||
-                              (entry.groupName || "Ohne Gruppe") !== selectedPlanningDay.groupName)
-                          ) {
-                            return false;
-                          }
-                          return entry.employeeName === user.name || (!entry.employeeName && user.name === "Nicht zugeordnet");
-                        })
-                        .sort((a, b) => `${a.startTime}${a.title}`.localeCompare(`${b.startTime}${b.title}`));
-                      const plannedHours = entries.reduce((sum, entry) => {
-                        if (typeof entry.durationMinutes === "number") return sum + entry.durationMinutes / 60;
-                        return sum + Math.max(0, (minutesFromTime(entry.endTime) - minutesFromTime(entry.startTime)) / 60);
-                      }, 0);
-                      const targetHours = user.dailyWorkHours ?? 8;
-                      const percent = targetHours > 0 ? Math.round((plannedHours / targetHours) * 100) : 0;
-
-                      return (
-                        <article className="mobileWorkerPlan" key={user.id}>
-                          <header>
-                            <div>
-                              <strong>{user.name}</strong>
-                              <span className={percent >= 100 ? "overload" : ""}>
-                                {percent}% ausgelastet · {plannedHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h von{" "}
-                                {targetHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h
-                              </span>
-                            </div>
-                            <i>
-                              <b style={{ width: `${Math.min(100, percent)}%` }} />
-                            </i>
-                          </header>
-                          <div className="mobileWorkerEntries">
-                            {entries.map((entry) => (
-                              <button
-                                className="mobileWorkerEntry"
-                                key={entry.id}
-                                type="button"
-                                onClick={() => entry.projectId && openProjectFromPlanning(entry)}
-                                disabled={!entry.projectId}
-                              >
-                                <time>
-                                  {entry.startTime}
-                                  <span>{entry.endTime}</span>
-                                </time>
-                                <div>
-                                  <strong>{entry.title}</strong>
-                                  <span>{entry.projectLabel || entry.customer || entry.groupName}</span>
-                                </div>
-                                <small className={`badge ${statusClass(entry.approvalStatus)}`}>
-                                  {entry.approvalStatus || "confirmed"}
-                                </small>
-                              </button>
-                            ))}
-                            {entries.length === 0 && <Empty text="Keine Termine für diesen Mitarbeiter." />}
-                          </div>
-                        </article>
-                      );
-                    })}
-                    {dayPlanningUsers.length === 0 && <Empty text="Keine Mitarbeiter oder Planungen für diesen Tag." />}
+                  <div className="planningDayTabs two" role="tablist" aria-label="Tagesplanung Ansicht">
+                    <button
+                      type="button"
+                      className={planningDayView === "board" ? "active" : ""}
+                      onClick={() => setPlanningDayView("board")}
+                    >
+                      Tagesboard
+                    </button>
+                    <button
+                      type="button"
+                      className={planningDayView === "workers" ? "active" : ""}
+                      onClick={() => setPlanningDayView("workers")}
+                    >
+                      Liste
+                    </button>
                   </div>
+                  {planningDayView === "board" ? (
+                    <div className="mobilePlannerBoard" aria-label="Tagesboard">
+                      <div className="mobilePlannerBoardCanvas">
+                        <div className="mobilePlannerBoardHeader">
+                          <span>Team</span>
+                          {Array.from({ length: 15 }, (_, index) => 6 + index).map((hour) => (
+                            <strong key={hour}>{`${String(hour).padStart(2, "0")}:00`}</strong>
+                          ))}
+                        </div>
+                        {dayPlanningUsers.map((user) => {
+                          const entries = dayPlanningEntries.filter(
+                            (entry) => entry.employeeName === user.name || (!entry.employeeName && user.name === "Nicht zugeordnet")
+                          );
+                          const plannedHours = entries.reduce((sum, entry) => {
+                            if (typeof entry.durationMinutes === "number") return sum + entry.durationMinutes / 60;
+                            return sum + Math.max(0, (minutesFromTime(entry.endTime) - minutesFromTime(entry.startTime)) / 60);
+                          }, 0);
+                          const targetHours = user.dailyWorkHours ?? 8;
+                          const percent = targetHours > 0 ? Math.round((plannedHours / targetHours) * 100) : 0;
+
+                          return (
+                            <div className="mobilePlannerBoardRow" key={user.id}>
+                              <div className="mobilePlannerWorker">
+                                <strong>{user.name}</strong>
+                                <span className={percent >= 100 ? "overload" : ""}>
+                                  {percent}% · {plannedHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h von{" "}
+                                  {targetHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h
+                                </span>
+                              </div>
+                              <div className="mobilePlannerLane">
+                                {entries.map((entry) => {
+                                  const startMinutes = Math.max(360, minutesFromTime(entry.startTime));
+                                  const endMinutes = Math.min(1200, Math.max(startMinutes + 30, minutesFromTime(entry.endTime)));
+                                  const left = ((startMinutes - 360) / 840) * 100;
+                                  const width = ((endMinutes - startMinutes) / 840) * 100;
+                                  const isDone = entry.approvalStatus === "done" || entry.approvalStatus === "completed";
+
+                                  return (
+                                    <button
+                                      className={`mobilePlannerBar ${isDone ? "done" : ""}`}
+                                      key={entry.id}
+                                      type="button"
+                                      style={{ left: `${left}%`, width: `${Math.max(7, width)}%` }}
+                                      onClick={() => openPlanningReschedule(entry)}
+                                      disabled={!canReschedulePlanningEntry(entry)}
+                                      title={`${entry.startTime}-${entry.endTime} ${entry.title}`}
+                                    >
+                                      <strong>{entry.title}</strong>
+                                      <span>{entry.startTime}-{entry.endTime}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {dayPlanningUsers.length === 0 && <Empty text="Keine Mitarbeiter oder Planungen für diesen Tag." />}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mobileDayWorkerList">
+                      {dayPlanningUsers.map((user) => {
+                        const entries = dayPlanningEntries.filter(
+                          (entry) => entry.employeeName === user.name || (!entry.employeeName && user.name === "Nicht zugeordnet")
+                        );
+                        const plannedHours = entries.reduce((sum, entry) => {
+                          if (typeof entry.durationMinutes === "number") return sum + entry.durationMinutes / 60;
+                          return sum + Math.max(0, (minutesFromTime(entry.endTime) - minutesFromTime(entry.startTime)) / 60);
+                        }, 0);
+                        const targetHours = user.dailyWorkHours ?? 8;
+                        const percent = targetHours > 0 ? Math.round((plannedHours / targetHours) * 100) : 0;
+
+                        return (
+                          <article className="mobileWorkerPlan" key={user.id}>
+                            <header>
+                              <div>
+                                <strong>{user.name}</strong>
+                                <span className={percent >= 100 ? "overload" : ""}>
+                                  {percent}% ausgelastet · {plannedHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h von{" "}
+                                  {targetHours.toLocaleString("de-DE", { maximumFractionDigits: 1 })}h
+                                </span>
+                              </div>
+                              <i>
+                                <b style={{ width: `${Math.min(100, percent)}%` }} />
+                              </i>
+                            </header>
+                            <div className="mobileWorkerEntries">
+                              {entries.map((entry) => (
+                                <button
+                                  className="mobileWorkerEntry"
+                                  key={entry.id}
+                                  type="button"
+                                  onClick={() => openPlanningReschedule(entry)}
+                                  disabled={!canReschedulePlanningEntry(entry)}
+                                >
+                                  <time>
+                                    {entry.startTime}
+                                    <span>{entry.endTime}</span>
+                                  </time>
+                                  <div>
+                                    <strong>{entry.title}</strong>
+                                    <span>{entry.projectLabel || entry.customer || entry.groupName}</span>
+                                  </div>
+                                  <small className={`badge ${statusClass(entry.approvalStatus)}`}>Umplanen</small>
+                                </button>
+                              ))}
+                              {entries.length === 0 && <Empty text="Keine Termine für diesen Mitarbeiter." />}
+                            </div>
+                          </article>
+                        );
+                      })}
+                      {dayPlanningUsers.length === 0 && <Empty text="Keine Mitarbeiter oder Planungen für diesen Tag." />}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -4718,6 +5828,109 @@ function App() {
         </div>
       )}
 
+      {postProcessEntry && (
+        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Endkontrolle nachbearbeiten">
+          <section className="completionDialog">
+            <header>
+              <div>
+                <p className="eyebrow">Nachbearbeitung</p>
+                <h2>{postProcessEntry.projectLabel || "Projektzeit"}</h2>
+              </div>
+              <button type="button" onClick={closePostProcessFinalInspection} disabled={isPostProcessing}>
+                ×
+              </button>
+            </header>
+            <div className="completionStep">
+              <p className="stepTitle">Endkontrolle</p>
+              <div className="startCommentBox">
+                <span>Zeitbuchung</span>
+                <strong>
+                  {formatFullDate(postProcessEntry.date)} · {postProcessEntry.startTime} - {postProcessEntry.endTime}
+                </strong>
+              </div>
+              <div className="startCommentBox">
+                <span>Tätigkeitsnotiz</span>
+                <strong>{postProcessEntry.comment?.trim() || "Keine Tätigkeitsnotiz erfasst."}</strong>
+              </div>
+              <label className="toggleRow">
+                <input
+                  type="checkbox"
+                  checked={finalInspectionByColleague}
+                  onChange={(event) => setFinalInspectionByColleague(event.target.checked)}
+                />
+                <span>Endkontrolle wird vom Kollegen durchgeführt</span>
+              </label>
+              <div className="checklistGrid">
+                {finalInspectionItems.map((label) => (
+                  <label key={label}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(finalChecklist[label])}
+                      disabled={finalInspectionByColleague}
+                      onChange={(event) =>
+                        setFinalChecklist((current) => ({
+                          ...current,
+                          [label]: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="upsellBlock">
+                <span>Zusatzverkaufsmöglichkeiten vorhanden?</span>
+                <div className="completionChoice small">
+                  <button
+                    type="button"
+                    className={upsellAnswer === "no" ? "active" : ""}
+                    onClick={() => setUpsellAnswer("no")}
+                  >
+                    Nein
+                  </button>
+                  <button
+                    type="button"
+                    className={upsellAnswer === "yes" ? "active" : ""}
+                    onClick={() => setUpsellAnswer("yes")}
+                  >
+                    Ja
+                  </button>
+                </div>
+                {upsellAnswer === "yes" && (
+                  <label className="commentBox">
+                    <span>Falls ja, welche?</span>
+                    <textarea
+                      value={upsellNotes}
+                      onChange={(event) => setUpsellNotes(event.target.value)}
+                      placeholder="Zusatzverkauf kurz beschreiben"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+            {postProcessError && <div className="inlineError">{postProcessError}</div>}
+            <footer>
+              <button
+                type="button"
+                className="secondaryDialogButton"
+                onClick={closePostProcessFinalInspection}
+                disabled={isPostProcessing}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className="primaryDialogButton"
+                onClick={savePostProcessFinalInspection}
+                disabled={isPostProcessing}
+              >
+                {isPostProcessing ? "Speichern..." : "Endkontrolle speichern"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
       {pendingProjectPhoto && (
         <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Bild prüfen">
           <section className="photoReviewDialog">
@@ -4816,8 +6029,155 @@ function App() {
         </div>
       )}
 
-      <nav className="mobileNav" aria-label="Mobile Bereiche">
-        {sections.filter((section) => mobileSectionIds.includes(section.id)).map((section) => {
+      {isNotificationsOpen && (
+        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Benachrichtigungen">
+          <section className="notificationSheet">
+            <header>
+              <div>
+                <p className="eyebrow">Benachrichtigungen</p>
+                <h2>{showNotificationHistory ? "Alle Nachrichten" : "Neue Nachrichten"}</h2>
+              </div>
+              <button type="button" onClick={() => setIsNotificationsOpen(false)} aria-label="Benachrichtigungen schließen">
+                ×
+              </button>
+            </header>
+            <div className="notificationToolbar">
+              <button
+                type="button"
+                className={!showNotificationHistory ? "active" : ""}
+                onClick={() => {
+                  setShowNotificationHistory(false);
+                  setNotificationSearchTerm("");
+                  void loadNotifications();
+                }}
+              >
+                Neu {unreadNotifications.length > 0 ? unreadNotifications.length : ""}
+              </button>
+              <button
+                type="button"
+                className={showNotificationHistory ? "active" : ""}
+                onClick={() => {
+                  setShowNotificationHistory(true);
+                  void loadNotifications({ history: true, search: notificationSearchTerm });
+                }}
+              >
+                Alle
+              </button>
+              {unreadNotifications.length > 0 && (
+                <button type="button" onClick={() => void markNotificationsRead()}>
+                  Alle gelesen
+                </button>
+              )}
+            </div>
+            <div className={`pushSetupCard ${pushStatus}`}>
+              <div>
+                <strong>Push aufs Handy</strong>
+                <span>
+                  {pushStatus === "enabled"
+                    ? "Dieses Gerät erhält Pushbenachrichtigungen."
+                    : pushStatus === "blocked"
+                      ? "Push ist auf diesem Gerät blockiert."
+                      : pushStatus === "unsupported"
+                        ? "Dieses Gerät unterstützt keine Web-Pushmeldungen."
+                        : "Für Terminänderungen direkt benachrichtigt werden."}
+                </span>
+                {pushMessage && <small>{pushMessage}</small>}
+              </div>
+              {pushStatus !== "enabled" && pushStatus !== "unsupported" && (
+                <button type="button" onClick={() => void enablePushNotifications()} disabled={isPushSaving}>
+                  {isPushSaving ? "Aktiviere..." : "Aktivieren"}
+                </button>
+              )}
+            </div>
+            {showNotificationHistory && (
+              <label className="notificationSearch">
+                <Search size={16} />
+                <input
+                  value={notificationSearchTerm}
+                  onChange={(event) => {
+                    const nextSearch = event.target.value;
+                    setNotificationSearchTerm(nextSearch);
+                    void loadNotifications({ history: true, search: nextSearch });
+                  }}
+                  placeholder="Nachricht suchen"
+                />
+              </label>
+            )}
+            {notificationActionError && <div className="inlineError">{notificationActionError}</div>}
+            <div className="notificationList">
+              {visibleNotifications.map((notification) => {
+                const canOpenTarget = Boolean((notification.linkTarget || notification.taskId) && (notification.linkTargetId || notification.taskId));
+                return (
+                  <article className={notification.readAt ? "notificationItem" : "notificationItem unread"} key={notification.id}>
+                    <div>
+                      <strong>{notification.subject}</strong>
+                      <span>{notification.body}</span>
+                      <small>
+                        {notification.readAt ? "Gelesen" : "Neu"} · {formatDateTime(notification.createdAt)}
+                      </small>
+                    </div>
+                    {canOpenTarget && (
+                      <button type="button" onClick={() => void openNotificationTarget(notification)}>
+                        {notification.linkLabel || "Öffnen"}
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+              {visibleNotifications.length === 0 && (
+                <Empty text={showNotificationHistory ? "Keine passenden Benachrichtigungen gefunden." : "Keine neuen Benachrichtigungen."} />
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {reschedulePlanningEntry && (
+        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Termin umplanen">
+          <section className="planningRescheduleDialog">
+            <header>
+              <div>
+                <p className="eyebrow">Termin umplanen</p>
+                <h2>{reschedulePlanningEntry.title}</h2>
+                <span>{reschedulePlanningEntry.employeeName || "Nicht zugeordnet"}</span>
+              </div>
+              <button type="button" onClick={closePlanningReschedule} aria-label="Umplanen schließen">
+                ×
+              </button>
+            </header>
+            <div className="planningRescheduleInfo">
+              <span>{reschedulePlanningEntry.projectLabel || reschedulePlanningEntry.customer || reschedulePlanningEntry.groupName}</span>
+              <small>Nur Datum und Uhrzeit werden geändert. Projekt, Gewerk und Abrechnungsbezug bleiben unverändert.</small>
+            </div>
+            <div className="planningRescheduleGrid">
+              <label>
+                Datum
+                <input type="date" value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} />
+              </label>
+              <label>
+                Start
+                <input type="time" value={rescheduleStartTime} onChange={(event) => setRescheduleStartTime(event.target.value)} />
+              </label>
+              <label>
+                Ende
+                <input type="time" value={rescheduleEndTime} onChange={(event) => setRescheduleEndTime(event.target.value)} />
+              </label>
+            </div>
+            {rescheduleError && <div className="inlineError">{rescheduleError}</div>}
+            <footer>
+              <button type="button" onClick={closePlanningReschedule} disabled={isReschedulingPlanning}>
+                Abbrechen
+              </button>
+              <button className="primaryDialogButton" type="button" onClick={() => void savePlanningReschedule()} disabled={isReschedulingPlanning}>
+                {isReschedulingPlanning ? "Speichern..." : "Umplanen"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      <nav className={`mobileNav count-${mobileSections.length}`} aria-label="Mobile Bereiche">
+        {mobileSections.map((section) => {
           const Icon = section.icon;
           return (
             <button

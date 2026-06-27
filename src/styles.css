@@ -350,7 +350,8 @@ select,
 
 .iconButton,
 .quickForm button,
-.taskActions button {
+.taskActions button,
+.taskDialogActions button {
   min-height: 42px;
   border: 0;
   border-radius: 8px;
@@ -365,18 +366,50 @@ select,
 }
 
 .iconButton {
+  position: relative;
   width: 42px;
   padding: 0;
 }
 
-.logoutButton {
-  background: #ef3b34;
+.notificationButton {
+  border: 1px solid #cfe0ea;
+  background: #ffffff;
+  color: #10596b;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.notificationButton.active {
+  border-color: #f0c56b;
+  background: #fff8e8;
+  color: #9a5b00;
+}
+
+.notificationButton span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #dc2626;
   color: #ffffff;
-  box-shadow: 0 8px 18px rgba(239, 59, 52, 0.22);
+  font-size: 0.66rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.logoutButton {
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #dc2626;
+  box-shadow: none;
 }
 
 .logoutButton:hover {
-  background: #dc2626;
+  background: #fee2e2;
 }
 
 .banner {
@@ -518,10 +551,11 @@ select,
 
 .homeDayPlanList {
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .homeDayPlanItem {
+  position: relative;
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
   grid-template-rows: minmax(74px, auto) auto;
@@ -529,14 +563,53 @@ select,
   gap: 0 10px;
   min-height: 118px;
   padding: 0;
-  border: 1px solid #dce5ef;
+  border: 2px solid #9fb5c7;
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(15, 102, 117, 0.055), transparent 36%),
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.92) inset,
+    0 0 0 4px rgba(159, 181, 199, 0.42),
+    0 12px 26px rgba(15, 23, 42, 0.09);
   overflow: hidden;
 }
 
+.homeDayPlanItem::before {
+  content: "";
+  position: absolute;
+  inset: 12px auto 12px 0;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
+  background: #0f6675;
+}
+
+.homeDayPlanItem.done {
+  border-color: #55b881;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.92) inset,
+    0 0 0 4px rgba(85, 184, 129, 0.24),
+    0 12px 26px rgba(15, 23, 42, 0.09);
+}
+
+.homeDayPlanItem.done::before {
+  background: #16a34a;
+}
+
+.homeDayPlanItem.interrupted {
+  border-color: #d8a928;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.92) inset,
+    0 0 0 4px rgba(216, 169, 40, 0.26),
+    0 12px 26px rgba(15, 23, 42, 0.09);
+}
+
+.homeDayPlanItem.interrupted::before {
+  background: #d8a928;
+}
+
 .homeDayPlanItem.withActions {
-  grid-template-columns: 76px minmax(0, 1fr) 62px;
+  grid-template-columns: 76px minmax(0, 1fr) 76px;
 }
 
 .homeDayPlanItem.withProgress {
@@ -610,15 +683,16 @@ select,
 .homeDayPlanItem time {
   grid-row: 1;
   align-self: start;
-  margin: 12px 0 0 12px;
+  margin: 14px 0 0 15px;
   display: grid;
   justify-items: center;
   gap: 2px;
-  padding: 8px 6px;
+  padding: 9px 7px;
   border-radius: 8px;
-  background: #eef8fa;
+  background: #ecf8fa;
   color: #0f5966;
   font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(15, 102, 117, 0.06);
 }
 
 .homeDayPlanItem time span {
@@ -632,7 +706,7 @@ select,
   min-width: 0;
   display: grid;
   gap: 3px;
-  padding: 10px 0 8px;
+  padding: 13px 0 10px;
 }
 
 .homeDayPlanDetails > strong,
@@ -676,9 +750,9 @@ select,
   flex-wrap: wrap;
   gap: 7px;
   min-height: 44px;
-  padding: 8px 12px;
-  border-top: 1px solid #edf1f5;
-  background: #fbfcfd;
+  padding: 9px 14px 10px;
+  border-top: 1px solid #e6edf4;
+  background: rgba(248, 251, 253, 0.86);
 }
 
 .homeDayPlanItem.withActions .homeDayPlanInfoRow {
@@ -781,8 +855,11 @@ button.homePhotoPill:disabled {
   grid-column: 3;
   display: grid;
   place-items: center;
-  border-left: 1px solid #edf1f5;
-  background: #fbfcfd;
+  border-left: 1px solid #e2eaf2;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 249, 252, 0.92)),
+    #f8fbfd;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.8);
 }
 
 .homeDayPlanItem.withProgress time,
@@ -811,11 +888,11 @@ button.homePhotoPill:disabled {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  border: 3px solid currentColor;
+  border: 2px solid currentColor;
   background: #ffffff;
   color: #111827;
   padding: 0;
-  box-shadow: none;
+  box-shadow: 0 7px 16px rgba(15, 23, 42, 0.08);
 }
 
 .roundAction svg {
@@ -1056,6 +1133,11 @@ button.homePhotoPill:disabled {
   display: grid;
   align-content: start;
   gap: 16px;
+  border-color: #d7e4ef;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.11), transparent 44%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.065);
 }
 
 .compactClock {
@@ -1155,15 +1237,17 @@ button.homePhotoPill:disabled {
 
 .timeReadout {
   min-height: 154px;
-  border: 1px solid #cfdbe6;
+  border: 1px solid #d4e2ec;
   background:
-    linear-gradient(180deg, #f8fbfd, #eef6fa);
+    radial-gradient(circle at top, rgba(20, 184, 166, 0.08), transparent 42%),
+    linear-gradient(180deg, #ffffff 0%, #f6fbfd 100%);
   border-radius: 8px;
   display: grid;
   place-items: center;
   gap: 14px;
   text-align: center;
   padding: 22px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055);
 }
 
 .timeReadout.withPhotoPills {
@@ -1180,6 +1264,7 @@ button.homePhotoPill:disabled {
   font-size: clamp(2.6rem, 7vw, 5.2rem);
   line-height: 1;
   letter-spacing: 0;
+  font-weight: 850;
 }
 
 .timeReadout span {
@@ -1275,15 +1360,16 @@ button.homePhotoPill:disabled {
 }
 
 .photoReviewDialog {
-  width: min(520px, 100%);
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 36px));
   max-height: min(760px, calc(100vh - 36px));
   display: grid;
   gap: 14px;
   overflow: auto;
-  border: 1px solid #d8e1ea;
+  border: 1px solid #cfdde8;
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
   padding: 16px;
 }
 
@@ -1305,6 +1391,7 @@ button.homePhotoPill:disabled {
   border: 1px solid #d7dee8;
   border-radius: 8px;
   background: #f8fafc;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
 }
 
 .photoReviewActions {
@@ -1360,8 +1447,8 @@ button.homePhotoPill:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1px solid #cad5df;
-  background: #e8eef3;
+  border: 1px solid #d3e0eb;
+  background: #edf4f8;
   border-radius: 8px;
 }
 
@@ -1379,8 +1466,8 @@ button.homePhotoPill:disabled {
 
 .segmented button.active {
   background: #ffffff;
-  color: var(--wp-dark);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  color: #0f6675;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
 }
 
 .commentBox {
@@ -1398,10 +1485,13 @@ button.homePhotoPill:disabled {
   width: 100%;
   min-height: 92px;
   resize: vertical;
-  border: 1px solid #d7dee8;
+  border: 1px solid #d7e4ef;
   border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
   padding: 10px 12px;
   color: #172033;
+  font: inherit;
+  font-weight: 800;
 }
 
 .inlineError {
@@ -1449,8 +1539,8 @@ button.homePhotoPill:disabled {
 }
 
 .startButton {
-  background: linear-gradient(180deg, #126f79, #10596b);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, #0f6675 0%, #0d7f82 100%);
+  box-shadow: 0 9px 20px rgba(15, 102, 117, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .startButton:hover:not(:disabled) {
@@ -1458,15 +1548,18 @@ button.homePhotoPill:disabled {
 }
 
 .pauseButton {
-  background: #b7791f;
+  background: linear-gradient(135deg, #b7791f 0%, #c88a24 100%);
+  box-shadow: 0 9px 20px rgba(183, 121, 31, 0.18);
 }
 
 .switchButton {
-  background: #10596b;
+  background: linear-gradient(135deg, #0f6675 0%, #2563eb 100%);
+  box-shadow: 0 9px 20px rgba(37, 99, 235, 0.16);
 }
 
 .stopButton {
-  background: #b42318;
+  background: linear-gradient(135deg, #b42318 0%, #dc2626 100%);
+  box-shadow: 0 9px 20px rgba(180, 35, 24, 0.18);
 }
 
 .timeMetrics {
@@ -1478,33 +1571,108 @@ button.homePhotoPill:disabled {
   align-items: start;
 }
 
+.timeSection .metric {
+  position: relative;
+  min-height: 86px;
+  padding: 15px 16px 15px 18px;
+  overflow: hidden;
+  border: 1px solid #d7e4ef;
+  border-top: 1px solid #d7e4ef;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 42%),
+    linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+}
+
+.timeSection .metric::before {
+  content: "";
+  position: absolute;
+  inset: 12px auto 12px 0;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
+  background: #14b8a6;
+}
+
+.timeSection .metric.blue::before {
+  background: #2563eb;
+}
+
+.timeSection .metric.green::before {
+  background: #16a085;
+}
+
+.timeSection .metric.amber::before {
+  background: #d97706;
+}
+
+.timeSection .metric svg {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #eef7f8;
+  color: #0f6675;
+  box-shadow: inset 0 0 0 1px rgba(15, 102, 117, 0.08);
+}
+
+.timeSection .metric.blue svg {
+  background: #eef5ff;
+  color: #1f6feb;
+}
+
+.timeSection .metric.green svg {
+  background: #edfdf7;
+  color: #16855f;
+}
+
+.timeSection .metric.amber svg {
+  background: #fff7ed;
+  color: #b7791f;
+}
+
+.timeSection .metric span {
+  color: #607086;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.timeSection .metric strong {
+  margin-top: 5px;
+  font-size: 1.82rem;
+  letter-spacing: 0;
+}
+
 .timeScopeBar {
   min-height: 88px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--wp-border);
+  padding: 14px 16px;
+  border: 1px solid #d7e4ef;
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  background:
+    linear-gradient(90deg, rgba(20, 184, 166, 0.08), transparent 44%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.055);
 }
 
 .timeViewSwitch {
   display: inline-grid;
   grid-auto-flow: column;
-  gap: 5px;
+  gap: 6px;
   padding: 5px;
-  border: 1px solid #cad5df;
-  border-radius: 999px;
-  background: #edf3f7;
+  border: 1px solid #d3e0eb;
+  border-radius: 8px;
+  background: #edf4f8;
 }
 
 .timeViewSwitch button {
   min-height: 34px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 7px;
   padding: 0 13px;
   background: transparent;
   color: #526174;
@@ -1512,9 +1680,28 @@ button.homePhotoPill:disabled {
 }
 
 .timeViewSwitch button.active {
-  background: #111827;
+  background: #ffffff;
+  color: #0f6675;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
+}
+
+.timeSection > .panel.wide {
+  border-color: #d7e4ef;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.065);
+}
+
+.timeSection > .panel.wide > .panelHeader {
+  margin: -16px -16px 14px;
+  padding: 16px;
+  border-bottom: 3px solid #20d6c9;
+  background: #101827;
   color: #ffffff;
-  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.2);
+}
+
+.timeSection > .panel.wide > .panelHeader h2,
+.timeSection > .panel.wide > .panelHeader svg {
+  color: #ffffff;
 }
 
 .timeEntryList {
@@ -1527,10 +1714,11 @@ button.homePhotoPill:disabled {
   grid-template-columns: 92px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  border: 1px solid #e3e8ee;
-  background: #fbfcfd;
+  border: 1px solid #dbe7f1;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
   border-radius: 8px;
   padding: 12px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
 .timeEntryCard time {
@@ -1561,11 +1749,11 @@ button.homePhotoPill:disabled {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   padding: 5px;
-  border: 1px solid #cad5df;
+  border: 1px solid #d3e0eb;
   border-radius: 8px;
-  background: #edf3f7;
+  background: #edf4f8;
 }
 
 .timePeriodSwitch button {
@@ -1578,9 +1766,9 @@ button.homePhotoPill:disabled {
 }
 
 .timePeriodSwitch button.active {
-  background: #111827;
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+  color: #0f6675;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
 }
 
 .timeGroupedList {
@@ -1594,10 +1782,11 @@ button.homePhotoPill:disabled {
 
 .timeDayGroup,
 .timeEmployeeGroup {
-  border: 1px solid #dbe5ef;
+  border: 1px solid #d7e4ef;
   border-radius: 8px;
   background: #ffffff;
   overflow: hidden;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
 }
 
 .timeDayGroup > header,
@@ -1606,13 +1795,13 @@ button.homePhotoPill:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 12px;
+  padding: 13px 14px;
   border-bottom: 1px solid #e4ebf2;
-  background: #f8fbfd;
+  background: linear-gradient(180deg, #f9fcfe 0%, #f2f7fa 100%);
 }
 
 .timeEmployeeGroup > header {
-  background: #111827;
+  background: #101827;
   color: #ffffff;
 }
 
@@ -1664,11 +1853,16 @@ button.homePhotoPill:disabled {
 }
 
 .timeDayGroup .timeEntryList {
-  padding: 10px;
+  padding: 12px;
 }
 
 .timeEntryCard.detailed {
-  grid-template-columns: 94px minmax(0, 1fr) auto;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  border-color: #d9e6f0;
+  background:
+    linear-gradient(90deg, rgba(15, 102, 117, 0.055), transparent 34%),
+    #ffffff;
+  box-shadow: none;
 }
 
 .timeEntryCard.detailed time {
@@ -1699,6 +1893,25 @@ button.homePhotoPill:disabled {
   gap: 7px;
 }
 
+.timeIssueAction {
+  min-height: 32px;
+  border: 1px solid #cfe0ea;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0f6675 0%, #0d7f82 100%);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 950;
+  padding: 0 10px;
+  box-shadow: 0 7px 16px rgba(15, 102, 117, 0.18);
+}
+
+.timeIssueHint {
+  color: #9b1c1c;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-align: right;
+}
+
 .timeAlertList,
 .teamTimeList {
   display: grid;
@@ -1708,10 +1921,20 @@ button.homePhotoPill:disabled {
 .timeAlert {
   display: grid;
   gap: 4px;
+  width: 100%;
   padding: 12px;
-  border: 1px solid #dbe5ef;
+  border: 1px solid #dbe7f1;
   border-radius: 8px;
-  background: #fbfcfd;
+  background: #ffffff;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+}
+
+.timeAlert:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .timeAlert span {
@@ -1733,18 +1956,32 @@ button.homePhotoPill:disabled {
 }
 
 .timeAlert.ok {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
+  border-color: #cceedd;
+  background: #f7fef9;
 }
 
 .timeAlert.warning {
-  border-color: #fde68a;
-  background: #fffbeb;
+  border-color: #f3d48b;
+  background: #fffaf0;
 }
 
 .timeAlert.active {
-  border-color: #67e8f9;
-  background: #ecfeff;
+  border-color: #8ee5ee;
+  background: #f0fdff;
+}
+
+.timeAlert.selected {
+  border-color: #0f6675;
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.16), 0 10px 22px rgba(15, 102, 117, 0.12);
+}
+
+.timeIssueReset {
+  min-height: 38px;
+  border: 1px solid #d6e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #10596b;
+  font-weight: 900;
 }
 
 .teamTimeRow {
@@ -2164,6 +2401,184 @@ button.planningBar:hover {
   gap: 10px;
 }
 
+.planningDayTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0;
+  padding: 5px;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  background: #edf5f9;
+}
+
+.planningDayTabs button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #596b82;
+  font: inherit;
+  font-weight: 900;
+}
+
+.planningDayTabs button.active {
+  background: #ffffff;
+  color: #075f6d;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.mobilePlannerBoard {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-top: 12px;
+  padding: 0 0 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobilePlannerBoardCanvas {
+  min-width: 1060px;
+  overflow: hidden;
+  border: 2px solid #b9cad8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.92) inset,
+    0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.mobilePlannerBoardHeader,
+.mobilePlannerBoardRow {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+}
+
+.mobilePlannerBoardHeader {
+  min-height: 42px;
+  border-bottom: 1px solid #d8e5ef;
+  background: #f8fbfd;
+}
+
+.mobilePlannerBoardHeader span,
+.mobilePlannerBoardHeader strong {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: #53667f;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.mobilePlannerBoardHeader span {
+  padding: 0 14px;
+  text-transform: uppercase;
+}
+
+.mobilePlannerBoardHeader strong {
+  justify-content: flex-start;
+  padding-left: 8px;
+  border-left: 1px solid #d8e5ef;
+}
+
+.mobilePlannerBoardHeader strong:nth-child(n + 2) {
+  grid-column: auto;
+}
+
+.mobilePlannerBoardHeader {
+  grid-template-columns: 190px repeat(15, 58px);
+}
+
+.mobilePlannerBoardRow {
+  min-height: 92px;
+  border-bottom: 1px solid #e4edf5;
+}
+
+.mobilePlannerBoardRow:last-child {
+  border-bottom: 0;
+}
+
+.mobilePlannerWorker {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  background: #f8fbfd;
+}
+
+.mobilePlannerWorker strong,
+.mobilePlannerWorker span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobilePlannerWorker span {
+  color: #008b99;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.mobilePlannerWorker span.overload {
+  color: #b42318;
+}
+
+.mobilePlannerLane {
+  position: relative;
+  min-height: 92px;
+  background:
+    linear-gradient(90deg, rgba(216, 229, 239, 0.95) 1px, transparent 1px) 0 0 / calc(100% / 14) 100%,
+    linear-gradient(90deg, #eef2f6 0 14.285%, transparent 14.285% 78.57%, #eef2f6 78.57% 100%),
+    #ffffff;
+}
+
+.mobilePlannerBar {
+  position: absolute;
+  top: 50%;
+  min-width: 70px;
+  height: 48px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 0 10px;
+  border: 2px solid #60a5fa;
+  border-radius: 8px;
+  background: #2f76f6;
+  color: #ffffff;
+  text-align: center;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.24),
+    0 10px 22px rgba(37, 99, 235, 0.22);
+  transform: translateY(-50%);
+}
+
+.mobilePlannerBar.done {
+  border-color: #86efac;
+  background: #20bf55;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.28),
+    0 10px 22px rgba(22, 163, 74, 0.2);
+}
+
+.mobilePlannerBar strong,
+.mobilePlannerBar span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobilePlannerBar strong {
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.mobilePlannerBar span {
+  font-size: 0.68rem;
+  font-weight: 900;
+  opacity: 0.92;
+}
+
 .mobileUtilizationBoard {
   overflow: hidden;
   border: 1px solid #d8e4ef;
@@ -2316,19 +2731,35 @@ button.planningBar:hover {
 }
 
 .mobileWorkerPlan {
+  position: relative;
   overflow: hidden;
-  border: 1px solid #d8e4ef;
+  border: 2px solid #b9cad8;
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(15, 102, 117, 0.045), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.92) inset,
+    0 0 0 4px rgba(178, 197, 211, 0.38),
+    0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.mobileWorkerPlan::before {
+  content: "";
+  position: absolute;
+  inset: 14px auto 14px 0;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
+  background: #0f6675;
 }
 
 .mobileWorkerPlan > header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 88px;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid #e3edf6;
-  background: #f8fbfd;
+  background: rgba(248, 251, 253, 0.9);
 }
 
 .mobileWorkerPlan > header strong,
@@ -2363,21 +2794,35 @@ button.planningBar:hover {
 }
 
 .mobileWorkerEntries {
-  padding: 10px;
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
 }
 
 .mobileWorkerEntry {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 62px;
-  padding: 8px;
-  border: 1px solid #e1e8ef;
+  padding: 10px;
+  border: 2px solid #d1deea;
   border-radius: 8px;
-  background: #fbfcfd;
+  background:
+    linear-gradient(90deg, rgba(15, 102, 117, 0.04), transparent 35%),
+    #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
+    0 8px 18px rgba(15, 23, 42, 0.065);
   color: inherit;
   text-align: left;
+}
+
+.mobileWorkerEntry:not(:disabled):hover {
+  border-color: #9fb5c7;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
+    0 10px 22px rgba(15, 23, 42, 0.09);
 }
 
 .mobileWorkerEntry:disabled {
@@ -2388,11 +2833,12 @@ button.planningBar:hover {
   display: grid;
   justify-items: center;
   gap: 2px;
-  padding: 7px 4px;
+  padding: 8px 5px;
   border-radius: 8px;
   background: #eef8fa;
   color: #0f5966;
   font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(15, 102, 117, 0.06);
 }
 
 .mobileWorkerEntry time span {
@@ -2428,15 +2874,16 @@ button.planningBar:hover {
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid #d9e3ef;
-  background: #f8fbfd;
+  background: #f3f8fb;
 }
 
 .taskSummaryTile {
   min-height: 64px;
   padding: 10px;
-  border: 1px solid #d7e4ef;
+  border: 1px solid #d9e6f0;
   border-radius: 8px;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
 }
 
 .taskSummaryTile span {
@@ -2468,30 +2915,31 @@ button.planningBar:hover {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid #d9e3ef;
+  background: #ffffff;
 }
 
 .taskFilterBar button {
   min-width: 92px;
-  min-height: 44px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid #cbd9e8;
+  border: 1px solid #d6e2ec;
   border-radius: 8px;
-  background: #ffffff;
+  background: #f8fbfd;
   color: #243248;
   font-weight: 900;
 }
 
 .taskFilterBar button.active {
   border-color: var(--wp-teal);
-  background: #e8fbfb;
+  background: #ffffff;
   color: #075f6d;
-  box-shadow: inset 0 3px 0 #101827;
+  box-shadow: 0 7px 16px rgba(15, 102, 117, 0.12), inset 0 2px 0 #14b8a6;
 }
 
 .taskFilterBar strong {
@@ -2515,15 +2963,16 @@ button.planningBar:hover {
   grid-template-columns: minmax(0, 1fr) 170px;
   gap: 12px;
   padding: 12px;
-  border-left: 4px solid transparent;
+  border-left: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
 }
 
 .taskCard:has(.badge.danger) {
-  border-left-color: #ef4444;
+  box-shadow: inset 3px 0 0 #ef4444, 0 10px 26px rgba(15, 23, 42, 0.065);
 }
 
 .taskCard:has(.badge.warning) {
-  border-left-color: #f5a400;
+  box-shadow: inset 3px 0 0 #f5a400, 0 10px 26px rgba(15, 23, 42, 0.065);
 }
 
 .taskOpenArea {
@@ -2614,10 +3063,10 @@ button.planningBar:hover {
   width: min(620px, calc(100vw - 22px));
   max-height: min(820px, calc(100vh - 22px));
   overflow: auto;
-  border: 1px solid #d6e2ee;
+  border: 1px solid #cfdde8;
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 22px 70px rgba(2, 8, 23, 0.3);
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
 }
 
 .taskDetailHeader {
@@ -2656,26 +3105,178 @@ button.planningBar:hover {
   line-height: 1;
 }
 
-.taskDetailChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 14px 18px 0;
+.taskStatusPanel {
+  display: grid;
+  gap: 10px;
+  margin: 14px 18px 0;
+  padding: 0;
+  border: 1px solid #c9dae8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
-.taskDetailGrid {
+.taskStatusSelectField {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 14px 18px;
+  gap: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  color: #22334a;
+  padding: 11px 14px;
+}
+
+.taskStatusSelectField::after {
+  content: "";
+  position: absolute;
+  top: 39px;
+  right: 18px;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.taskStatusSelectField span {
+  color: #536174;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.taskStatusSelectField select {
+  width: 100%;
+  min-height: 34px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 850;
+  padding: 0 34px 0 0;
+}
+
+.taskStatusSelectField.warning {
+  border-color: #f1c96d;
+  background: #fff7df;
+  color: #7a4b00;
+}
+
+.taskStatusSelectField.positive {
+  border-color: #86d7c5;
+  background: #e8fbf7;
+  color: #086554;
+}
+
+.taskStatusSelectField.danger {
+  border-color: #f3b3b3;
+  background: #fff0f0;
+  color: #9b1c1c;
+}
+
+.taskStatusSelectField select:disabled {
+  cursor: default;
+}
+
+.taskQuickSummary {
+  display: grid;
+  gap: 0;
+  margin: 10px 18px 0;
+  border: 1px solid #d7e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+}
+
+.taskQuickSummary div {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.34fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 12px;
+}
+
+.taskQuickSummary div + div {
+  border-top: 1px solid #e8eef5;
+}
+
+.taskQuickSummary span,
+.taskQuickSummary strong,
+.taskQuickSummary em {
+  display: block;
+}
+
+.taskQuickSummary span {
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.taskQuickSummary strong {
+  margin: 0;
+  color: #172033;
+  font-size: 0.88rem;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.taskQuickSummary em {
+  margin: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #9b1c1c;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.taskMetaList {
+  margin: 0;
+  border: 1px solid #d8e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.taskMetaList .detailItem {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 9px 12px;
+}
+
+.taskMetaList .detailItem + .detailItem {
+  border-top: 1px solid #e8eef5;
+}
+
+.taskMetaList .detailItem span {
+  margin: 0;
+}
+
+.taskMetaList .detailItem strong {
+  margin: 0;
+  text-align: right;
 }
 
 .taskReadonlyField {
-  margin: 0 18px 12px;
-  padding: 10px 12px;
+  margin: 12px 18px;
+  padding: 12px 14px;
   border: 1px solid #d8e4ef;
   border-radius: 8px;
-  background: #f8fbfd;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
 }
 
 .taskReadonlyField span,
@@ -2690,7 +3291,7 @@ button.planningBar:hover {
 .taskReadonlyField p {
   margin: 0;
   color: #122035;
-  font-weight: 800;
+  font-weight: 760;
   line-height: 1.35;
 }
 
@@ -2701,42 +3302,113 @@ button.planningBar:hover {
   padding: 0 18px 14px;
 }
 
+.taskStatusPanel .taskDialogActions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0;
+}
+
 .taskDialogActions button {
+  border: 1px solid #d5e2ed;
+  background: #eef4f7;
+  color: #10596b;
   min-height: 44px;
   justify-content: center;
 }
 
+.taskActions button.statusDone,
+.taskDialogActions button.statusDone,
 .taskDialogActions button:last-child {
   background: #0f6675;
   color: #ffffff;
 }
 
+.taskDetailTabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 18px 12px;
+  padding: 4px;
+  border: 1px solid #d3e0eb;
+  border-radius: 8px;
+  background: #edf4f8;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.taskDetailTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.taskDetailTabs button {
+  flex: 1 0 auto;
+  min-width: max-content;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #536174;
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 0 7px;
+}
+
+.taskDetailTabs button.active {
+  background: #ffffff;
+  color: #0f6675;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
+}
+
+.taskDetailTabs strong {
+  min-width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e2eaf2;
+  color: #536174;
+  font-size: 0.68rem;
+}
+
+.taskDetailTabs button.active strong {
+  background: #d9f5f2;
+  color: #075f6d;
+}
+
 .taskDetailSection {
-  padding: 0 18px 14px;
+  padding: 0 18px 16px;
 }
 
 .taskChipList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  gap: 0;
+  border: 1px solid #d8e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
 }
 
 .taskInfoChip {
-  display: inline-flex;
-  min-height: 30px;
+  display: flex;
+  min-height: 34px;
   align-items: center;
-  padding: 0 10px;
-  border: 1px solid #d4e1ec;
-  border-radius: 999px;
-  background: #f4f8fb;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #33445b;
   font-size: 0.8rem;
   font-weight: 900;
 }
 
+.taskInfoChip + .taskInfoChip {
+  border-top: 1px solid #e8eef5;
+}
+
 .taskInfoChip.strong {
-  border-color: #14b8a6;
-  background: #e8fbfb;
+  background: #f3fbfb;
   color: #075f6d;
 }
 
@@ -2744,11 +3416,21 @@ button.planningBar:hover {
 .taskCommentForm {
   display: grid;
   gap: 8px;
-  margin-bottom: 10px;
 }
 
 .taskParticipantControls {
   grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 10px;
+}
+
+.taskCommentForm {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #d2e0eb;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .taskParticipantControls select,
@@ -2765,9 +3447,19 @@ button.planningBar:hover {
 }
 
 .taskCommentForm textarea {
-  min-height: 84px;
+  min-height: 44px;
+  border-color: #d9e5ef;
+  background: #ffffff;
   padding: 10px 12px;
   resize: vertical;
+}
+
+.taskCommentForm select {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  border-color: transparent;
+  background: #edf4f8;
+  font-size: 0.82rem;
 }
 
 .taskParticipantControls button,
@@ -2779,6 +3471,13 @@ button.planningBar:hover {
   color: #ffffff;
   font-weight: 900;
   padding: 0 14px;
+}
+
+.taskCommentForm button {
+  min-width: 96px;
+  gap: 6px;
+  background: linear-gradient(135deg, #0f6675 0%, #0d7f82 100%);
+  box-shadow: 0 8px 18px rgba(15, 102, 117, 0.22);
 }
 
 .taskParticipantControls button:disabled,
@@ -2797,9 +3496,159 @@ button.planningBar:hover {
   font-weight: 900;
 }
 
+.taskChatList {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #e1e8ef;
+  border-radius: 8px;
+  background: #f4f8fb;
+}
+
+.taskChatMessage {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+.taskChatMessage.own {
+  grid-template-columns: minmax(0, 1fr) 32px;
+}
+
+.taskChatAvatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e2eef5;
+  color: #10596b;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.taskChatMessage.own .taskChatAvatar {
+  grid-column: 2;
+  grid-row: 1;
+  background: #dceafe;
+  color: #1d4ed8;
+}
+
+.taskChatBubble {
+  max-width: 88%;
+  justify-self: start;
+  border: 1px solid #d7e2ec;
+  border-radius: 8px 8px 8px 2px;
+  background: #ffffff;
+  color: #122035;
+  padding: 9px 10px;
+}
+
+.taskChatMessage.own .taskChatBubble {
+  justify-self: end;
+  border-color: #1d6fe8;
+  border-radius: 8px 8px 2px 8px;
+  background: #1f6feb;
+  color: #ffffff;
+}
+
+.taskChatMeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.taskChatMeta strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.taskChatMeta span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.taskChatMessage.own .taskChatMeta span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.taskChatBubble p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.taskHistorySection {
+  margin: 4px 18px 14px;
+  padding: 14px 0 0;
+  border-top: 2px solid #d8e4ef;
+}
+
+.taskHistorySection h3 {
+  margin-bottom: 8px;
+  color: #33445b;
+}
+
 .taskTimeline {
   display: grid;
   gap: 8px;
+}
+
+.taskHistoryTimeline {
+  display: grid;
+  gap: 7px;
+}
+
+.taskHistoryTimeline > div {
+  position: relative;
+  padding: 8px 10px 8px 28px;
+  border: 1px solid #e1e8ef;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.taskHistoryTimeline > div::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 13px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.taskHistoryTimeline strong,
+.taskHistoryTimeline span {
+  display: block;
+}
+
+.taskHistoryTimeline strong {
+  color: #172033;
+  font-size: 0.88rem;
+}
+
+.taskHistoryTimeline span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.taskHistoryTimeline p {
+  margin: 5px 0 0;
+  color: #33445b;
+  font-size: 0.86rem;
 }
 
 .taskTimeline > div {
@@ -3097,12 +3946,13 @@ button.projectCard:hover {
 
 .projectDetailHeader button {
   min-height: 42px;
-  border: 1px solid #cfd9e5;
+  border: 1px solid #d4e1eb;
   border-radius: 8px;
-  background: #ffffff;
-  color: #172033;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  color: #10596b;
   font-weight: 900;
   padding: 0 14px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .projectDetailGrid {
@@ -3115,10 +3965,10 @@ button.projectCard:hover {
 
 .detailItem,
 .projectRelated > div {
-  border: 1px solid #e0e7ef;
+  border: 1px solid #dce8f1;
   border-radius: 8px;
-  background: #fbfcfd;
-  padding: 8px 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
+  padding: 9px 11px;
 }
 
 .detailItem span,
@@ -3158,10 +4008,11 @@ button.projectCard:hover {
 
 .projectPhotoGallery section {
   min-width: 0;
-  border: 1px solid #dce7ef;
+  border: 1px solid #d7e4ef;
   border-radius: 8px;
-  background: #fbfcfd;
+  background: #ffffff;
   padding: 10px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
 }
 
 .projectPhotoGalleryHeader {
@@ -3181,11 +4032,12 @@ button.projectCard:hover {
   min-height: 34px;
   border: 0;
   border-radius: 8px;
-  background: #10596b;
+  background: linear-gradient(135deg, #0f6675 0%, #0d7f82 100%);
   color: #ffffff;
   font-size: 0.78rem;
   font-weight: 950;
   padding: 0 10px;
+  box-shadow: 0 8px 18px rgba(15, 102, 117, 0.18);
 }
 
 .projectPhotoGalleryHeader button:disabled {
@@ -3213,9 +4065,10 @@ button.projectCard:hover {
   width: 100%;
   aspect-ratio: 1;
   border-radius: 8px;
-  border: 1px solid #cfdae5;
+  border: 1px solid #d6e2ec;
   object-fit: cover;
   background: #eef3f7;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
 .projectPhotoThumbGrid span {
@@ -3237,15 +4090,16 @@ button.projectCard:hover {
 }
 
 .projectPhotoDialog {
-  width: min(560px, 100%);
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 36px));
   max-height: min(780px, calc(100vh - 36px));
   display: grid;
   gap: 12px;
   overflow: auto;
-  border: 1px solid #d8e1ea;
+  border: 1px solid #cfdde8;
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
   padding: 14px;
 }
 
@@ -3264,7 +4118,7 @@ button.projectCard:hover {
 .projectPhotoDialog > header > button {
   width: 36px;
   height: 36px;
-  border: 1px solid #d4dde8;
+  border: 1px solid #d5e2ec;
   border-radius: 8px;
   background: #ffffff;
   color: #172033;
@@ -3273,10 +4127,11 @@ button.projectCard:hover {
 }
 
 .projectPhotoDialogSection {
-  border: 1px solid #dce7ef;
+  border: 1px solid #d7e4ef;
   border-radius: 8px;
-  background: #fbfcfd;
+  background: #ffffff;
   padding: 10px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
 }
 
 .personalHero {
@@ -3286,6 +4141,7 @@ button.projectCard:hover {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
 }
 
 .personalIdentity {
@@ -3310,7 +4166,7 @@ button.projectCard:hover {
 .personalIdentity em {
   display: grid;
   place-items: center;
-  background: #eaf3f7;
+  background: linear-gradient(135deg, #e8fbfb 0%, #edf5ff 100%);
   color: #10596b;
   font-style: normal;
   font-size: 1.4rem;
@@ -3337,9 +4193,9 @@ button.projectCard:hover {
   min-height: 32px;
   display: inline-flex;
   align-items: center;
-  border: 1px solid #cad9e7;
+  border: 1px solid #d7e4ef;
   border-radius: 999px;
-  background: #f2f7fb;
+  background: #ffffff;
   color: #1c4f75;
   padding: 0 12px;
   font-size: 0.78rem;
@@ -3356,12 +4212,27 @@ button.projectCard:hover {
 .personalMasterData {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
+  border: 1px solid #d8e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
 }
 
 .personalMasterData .detailItem {
   min-height: 54px;
-  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 9px 11px;
+}
+
+.personalMasterData .detailItem:nth-child(2n) {
+  border-left: 1px solid #e8eef5;
+}
+
+.personalMasterData .detailItem:nth-child(n + 3) {
+  border-top: 1px solid #e8eef5;
 }
 
 .personalMasterData .detailItem span {
@@ -3399,9 +4270,9 @@ button.projectCard:hover {
 .personalAbsenceForm textarea {
   width: 100%;
   min-height: 42px;
-  border: 1px solid #d7dee8;
+  border: 1px solid #d7e4ef;
   border-radius: 8px;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
   color: #172033;
   padding: 0 12px;
   font: inherit;
@@ -3429,10 +4300,10 @@ button.projectCard:hover {
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid #dfe7ef;
+  border: 1px solid #d8e4ef;
   border-radius: 8px;
   padding: 9px 10px;
-  background: #fbfcfd;
+  background: #ffffff;
   color: #26364d;
 }
 
@@ -3448,22 +4319,23 @@ button.projectCard:hover {
 
 .personalAbsenceItem {
   position: relative;
-  border-left: 4px solid #94a3b8;
+  border-left: 0;
+  box-shadow: inset 3px 0 0 #94a3b8;
 }
 
 .personalAbsenceItem[data-status="genehmigt"] {
-  border-left-color: #16a34a;
+  box-shadow: inset 3px 0 0 #16a34a;
   background: #f3fbf6;
 }
 
 .personalAbsenceItem[data-status="wartet_vertreter"],
 .personalAbsenceItem[data-status="wartet_geschaeftsfuehrung"] {
-  border-left-color: #f59e0b;
+  box-shadow: inset 3px 0 0 #f59e0b;
   background: #fffaf0;
 }
 
 .personalAbsenceItem[data-status="abgelehnt"] {
-  border-left-color: #dc2626;
+  box-shadow: inset 3px 0 0 #dc2626;
   background: #fff5f5;
 }
 
@@ -3508,25 +4380,339 @@ button.projectCard:hover {
 }
 
 .completionDialog {
-  width: min(720px, 100%);
+  box-sizing: border-box;
+  width: min(720px, calc(100vw - 36px));
   max-height: min(860px, calc(100vh - 36px));
   overflow: auto;
-  border: 1px solid #d8e1ea;
+  border: 1px solid #cfdde8;
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
   padding: 16px;
 }
 
 .confirmDialog {
-  width: min(420px, 100%);
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 36px));
   display: grid;
   gap: 14px;
-  border: 1px solid #d8e1ea;
+  border: 1px solid #cfdde8;
+  border-radius: 8px;
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
+  padding: 16px;
+}
+
+.notificationSheet {
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(760px, calc(100vh - 24px));
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid #cfdde8;
+  border-radius: 8px;
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
+  padding: 14px;
+}
+
+.notificationSheet > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notificationSheet > header button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d5e2ec;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
-  padding: 16px;
+  color: #172033;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.notificationToolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #d3e0eb;
+  border-radius: 8px;
+  background: #edf4f8;
+}
+
+.notificationToolbar button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #526174;
+  font-weight: 900;
+}
+
+.notificationToolbar button.active {
+  background: #ffffff;
+  color: #0f6675;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
+}
+
+.pushSetupCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #d3e0eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.pushSetupCard.enabled {
+  border-color: #86efac;
+  background: #ecfdf5;
+}
+
+.pushSetupCard.blocked,
+.pushSetupCard.unsupported {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.pushSetupCard strong,
+.pushSetupCard span,
+.pushSetupCard small {
+  display: block;
+}
+
+.pushSetupCard strong {
+  color: #172033;
+  font-size: 0.9rem;
+}
+
+.pushSetupCard span,
+.pushSetupCard small {
+  color: #607086;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.pushSetupCard small {
+  margin-top: 3px;
+}
+
+.pushSetupCard button {
+  min-height: 36px;
+  border: 1px solid #0f6675;
+  border-radius: 8px;
+  background: #0f6675;
+  color: #ffffff;
+  font-weight: 900;
+  padding: 0 12px;
+}
+
+.pushSetupCard button:disabled {
+  opacity: 0.65;
+}
+
+.notificationSearch {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d7e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #66778b;
+  padding: 0 10px;
+}
+
+.notificationSearch input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #172033;
+  font: inherit;
+  font-weight: 800;
+  outline: none;
+}
+
+.notificationList {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.notificationItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d9e6f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.notificationItem.unread {
+  border-color: #9dd5e4;
+  background: #f0fbfe;
+  box-shadow: inset 3px 0 0 #14b8a6, 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.notificationItem strong,
+.notificationItem span,
+.notificationItem small {
+  display: block;
+}
+
+.notificationItem strong {
+  color: #172033;
+  font-size: 0.92rem;
+}
+
+.notificationItem span {
+  margin-top: 3px;
+  color: #536174;
+  font-size: 0.82rem;
+  line-height: 1.32;
+}
+
+.notificationItem small {
+  margin-top: 6px;
+  color: #7a8899;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.notificationItem button {
+  min-height: 34px;
+  border: 1px solid #cfe0ea;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0f6675 0%, #0d7f82 100%);
+  color: #ffffff;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.planningRescheduleDialog {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 24px));
+  display: grid;
+  gap: 12px;
+  border: 1px solid #cfdde8;
+  border-radius: 8px;
+  background: #f7fafc;
+  box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
+  padding: 14px;
+}
+
+.planningRescheduleDialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.planningRescheduleDialog > header div {
+  min-width: 0;
+}
+
+.planningRescheduleDialog h2,
+.planningRescheduleDialog header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planningRescheduleDialog header span,
+.planningRescheduleInfo span,
+.planningRescheduleInfo small {
+  display: block;
+}
+
+.planningRescheduleDialog header span,
+.planningRescheduleInfo small {
+  color: #607086;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.planningRescheduleDialog > header button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d5e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.planningRescheduleInfo {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #d8e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.planningRescheduleInfo span {
+  color: #172033;
+  font-weight: 900;
+}
+
+.planningRescheduleGrid {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(2, minmax(0, 0.85fr));
+  gap: 8px;
+}
+
+.planningRescheduleGrid label {
+  display: grid;
+  gap: 5px;
+  color: #536174;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.planningRescheduleGrid input {
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d7e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  font-weight: 850;
+  padding: 0 10px;
+}
+
+.planningRescheduleDialog footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.planningRescheduleDialog footer button {
+  min-height: 42px;
+  border: 1px solid #d5e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font-weight: 900;
 }
 
 .confirmDialog header {
@@ -4045,12 +5231,12 @@ button.projectCard:hover {
     order: 3;
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
+    grid-template-columns: minmax(0, 1fr) 42px 42px 42px 42px;
     gap: 8px;
   }
 
   .homeTopbar .topbarActions {
-    grid-template-columns: minmax(0, 1fr) 42px 42px;
+    grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
   }
 
   .searchBox {
@@ -4208,7 +5394,8 @@ button.projectCard:hover {
   }
 
   .homeDayPlanItem {
-    grid-template-columns: 66px minmax(0, 1fr) 54px;
+    grid-template-columns: 66px minmax(0, 1fr) 58px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
   }
 
   .homeDayPlanActions {
@@ -4234,12 +5421,6 @@ button.projectCard:hover {
     flex: 1;
   }
 
-  .taskDetailGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    padding: 10px;
-  }
-
   .taskDialogActions {
     grid-template-columns: 1fr;
   }
@@ -4250,16 +5431,16 @@ button.projectCard:hover {
 
   .mobileNav {
     position: fixed;
-    left: 10px;
-    right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     z-index: 20;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 4px;
-    padding: 6px;
+    gap: 3px;
+    padding: 5px;
     border: 1px solid #253145;
-    border-top: 3px solid var(--wp-teal);
+    border-top: 2px solid var(--wp-teal);
     border-radius: 8px;
     background: rgba(17, 24, 39, 0.97);
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
@@ -4267,14 +5448,34 @@ button.projectCard:hover {
   }
 
   .mobileNav button {
-    min-height: 52px;
+    min-height: 44px;
     display: grid;
     place-items: center;
     gap: 2px;
     border-radius: 8px;
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     font-weight: 900;
     color: #d7e1ee;
+  }
+
+  .mobileNav button svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mobileNav.count-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .mobileNav.count-6 button {
+    min-height: 46px;
+    font-size: 0.56rem;
+    line-height: 1.05;
+  }
+
+  .mobileNav.count-6 button svg {
+    width: 16px;
+    height: 16px;
   }
 
   .mobileNav button.active {
@@ -4285,11 +5486,21 @@ button.projectCard:hover {
 
   .modalOverlay {
     align-items: end;
-    padding: 10px;
+    padding: 8px;
+  }
+
+  .completionDialog,
+  .confirmDialog,
+  .notificationSheet,
+  .planningRescheduleDialog,
+  .photoReviewDialog,
+  .projectPhotoDialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
   }
 
   .completionDialog {
-    max-height: calc(100vh - 20px);
+    padding: 14px;
   }
 
   .completionDialog header,
@@ -4299,6 +5510,48 @@ button.projectCard:hover {
 
   .completionDialog footer button {
     width: 100%;
+  }
+
+  .photoReviewDialog,
+  .notificationSheet,
+  .planningRescheduleDialog,
+  .projectPhotoDialog {
+    padding: 12px;
+  }
+
+  .notificationItem {
+    grid-template-columns: 1fr;
+  }
+
+  .planningRescheduleGrid,
+  .planningRescheduleDialog footer {
+    grid-template-columns: 1fr;
+  }
+
+  .projectPhotoDialog > header {
+    align-items: center;
+  }
+
+  .projectPhotoDialog > header > div {
+    min-width: 0;
+  }
+
+  .projectPhotoDialog h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .projectPhotoDialogSection {
+    padding: 8px;
+  }
+
+  .projectPhotoGalleryHeader {
+    gap: 8px;
+  }
+
+  .projectPhotoGalleryHeader button {
+    padding: 0 8px;
   }
 
   .completionWorkRow {
@@ -4331,30 +5584,48 @@ button.projectCard:hover {
 
 @media (max-width: 560px) {
   .main {
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 8px calc(122px + env(safe-area-inset-bottom, 0px));
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 8px calc(96px + env(safe-area-inset-bottom, 0px));
   }
 
   h1 {
-    font-size: 1.55rem;
+    font-size: 1.28rem;
+  }
+
+  .topbar {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .topbarTitle {
+    width: min(230px, 70vw);
+  }
+
+  .topbarTitle h1::before,
+  .topbarTitle h1::after {
+    height: 1px;
   }
 
   .topbarActions {
-    grid-template-columns: minmax(0, 1fr) 38px 38px 38px;
-    gap: 7px;
+    grid-template-columns: minmax(0, 1fr) 36px 36px 36px 36px;
+    gap: 6px;
+  }
+
+  .homeTopbar .topbarActions {
+    grid-template-columns: minmax(0, 1fr) 36px 36px 36px;
   }
 
   .topbarLogo {
     display: block;
-    width: min(230px, 82vw);
-    max-height: 46px;
+    width: min(184px, 64vw);
+    max-height: 34px;
     opacity: 1;
     transform: none;
   }
 
   .currentUserBadge,
   .iconButton {
-    min-height: 38px;
-    width: 38px;
+    min-height: 36px;
+    width: 36px;
   }
 
   .currentUserBadge img {
@@ -4363,14 +5634,35 @@ button.projectCard:hover {
   }
 
   .searchBox {
-    min-height: 38px;
-    padding: 0 10px;
+    min-height: 36px;
+    padding: 0 9px;
+  }
+
+  .connectionNotice {
+    margin-bottom: 10px;
+    gap: 1px;
+    padding: 9px 10px;
+  }
+
+  .connectionNotice strong {
+    font-size: 0.84rem;
+  }
+
+  .connectionNotice span {
+    font-size: 0.78rem;
+    line-height: 1.28;
+  }
+
+  .inlineError {
+    padding: 9px 10px;
+    font-size: 0.82rem;
+    line-height: 1.3;
   }
 
   .timeScopeBar {
     min-height: 0;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 10px;
   }
 
   .timeViewSwitch {
@@ -4389,8 +5681,35 @@ button.projectCard:hover {
   }
 
   .metric {
-    min-height: 76px;
-    padding: 12px;
+    min-height: 64px;
+    padding: 9px;
+    gap: 8px;
+  }
+
+  .metric svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .timeSection .metric {
+    min-height: 72px;
+    padding: 10px 10px 10px 14px;
+    gap: 8px;
+  }
+
+  .timeSection .metric svg {
+    width: 30px;
+    height: 30px;
+    padding: 7px;
+  }
+
+  .timeSection .metric span {
+    font-size: 0.62rem;
+  }
+
+  .timeSection .metric strong {
+    margin-top: 3px;
+    font-size: 1.48rem;
   }
 
   .metricRow,
@@ -4402,7 +5721,8 @@ button.projectCard:hover {
 
   .timeMetrics,
   .teamTimeValues {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .homeMiniMetrics {
@@ -4514,6 +5834,51 @@ button.projectCard:hover {
     font-size: 0.82rem;
   }
 
+  .taskQuickSummary {
+    gap: 0;
+    margin: 8px 12px 0;
+  }
+
+  .taskQuickSummary div {
+    grid-template-columns: minmax(76px, 0.35fr) minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 9px;
+  }
+
+  .taskQuickSummary strong {
+    margin: 0;
+    text-align: right;
+  }
+
+  .taskReadonlyField,
+  .taskStatusPanel,
+  .taskDetailTabs {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .taskDetailTabs {
+    gap: 3px;
+  }
+
+  .taskDetailSection {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .taskChatList {
+    padding: 8px;
+  }
+
+  .taskCommentForm {
+    grid-template-columns: 1fr;
+  }
+
+  .taskChatBubble {
+    max-width: 94%;
+  }
+
   .compactClock .timeReadout {
     min-height: 94px;
   }
@@ -4531,13 +5896,66 @@ button.projectCard:hover {
     font-size: 0.76rem;
   }
 
+  .personalHero {
+    min-height: 0;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .personalIdentity {
+    gap: 10px;
+  }
+
+  .personalIdentity img,
+  .personalIdentity em {
+    width: 48px;
+    height: 48px;
+  }
+
+  .personalIdentity h2 {
+    font-size: 1.12rem;
+  }
+
+  .personalIdentity span {
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+  }
+
+  .personalFacts {
+    gap: 6px;
+  }
+
+  .personalFacts span {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 0.7rem;
+  }
+
+  .personalMasterData {
+    gap: 7px;
+  }
+
+  .personalMasterData .detailItem {
+    min-height: 46px;
+    padding: 7px 8px;
+  }
+
+  .personalMasterData .detailItem span {
+    font-size: 0.58rem;
+  }
+
+  .personalMasterData .detailItem strong {
+    font-size: 0.78rem;
+    line-height: 1.18;
+  }
+
   .metric span {
     font-size: 0.62rem;
     line-height: 1.08;
   }
 
   .metric strong {
-    font-size: 1.24rem;
+    font-size: 1.18rem;
   }
 
   .timelineItem {
@@ -4552,7 +5970,7 @@ button.projectCard:hover {
   }
 
   .personalMasterData {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .taskFilterBar {
