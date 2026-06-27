@@ -1148,16 +1148,25 @@ function App() {
       }
 
       const { publicKey } = await fetchJson<PushPublicKeyResponse>("/api/push/public-key");
-      if (!publicKey) throw new Error("Push-Schlüssel fehlt.");
+      const normalizedPublicKey = publicKey.trim();
+      if (!normalizedPublicKey) throw new Error("Push-Schlüssel fehlt.");
 
       const registration = await navigator.serviceWorker.ready;
       const existingSubscription = await registration.pushManager.getSubscription();
-      const subscription =
-        existingSubscription ??
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToArrayBuffer(publicKey),
-        }));
+      let subscription = existingSubscription;
+      if (!subscription) {
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: normalizedPublicKey,
+          } as PushSubscriptionOptionsInit);
+        } catch (stringKeyError) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToArrayBuffer(normalizedPublicKey),
+          });
+        }
+      }
 
       await fetchJson("/api/push/subscriptions", {
         method: "POST",
