@@ -848,6 +848,7 @@ function App() {
   const [showNotificationHistory, setShowNotificationHistory] = useState(false);
   const [notificationSearchTerm, setNotificationSearchTerm] = useState("");
   const [notificationActionError, setNotificationActionError] = useState("");
+  const [pendingNotificationTarget, setPendingNotificationTarget] = useState<{ target: string; targetId: string } | null>(null);
   const [pushStatus, setPushStatus] = useState<PushUiStatus>("idle");
   const [pushMessage, setPushMessage] = useState("");
   const [pushDebugInfo, setPushDebugInfo] = useState("");
@@ -889,6 +890,8 @@ function App() {
   const afterPhotoInputRef = useRef<HTMLInputElement>(null);
   const isProjectLogbookLoadingRef = useRef(false);
   const hasProjectLogbookLoadedRef = useRef(false);
+  const reconnectRequestRef = useRef<Promise<void> | null>(null);
+  const lastReconnectAttemptRef = useRef(0);
 
   const activeUser = useMemo(() => {
     return data.users.find((user) => user.id === selectedUserId) ?? data.users[0];
@@ -981,6 +984,24 @@ function App() {
     }
     setError(errors.join(" | "));
     setState("ready");
+  }
+
+  async function reconnectMainProgram(force = false) {
+    if (!loginUser) return;
+    if (reconnectRequestRef.current) {
+      await reconnectRequestRef.current;
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - lastReconnectAttemptRef.current < 15000) return;
+
+    lastReconnectAttemptRef.current = now;
+    const request = loadData(loginUser.id).finally(() => {
+      reconnectRequestRef.current = null;
+    });
+    reconnectRequestRef.current = request;
+    await request;
   }
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
@@ -1290,6 +1311,32 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!loginUser) return;
+
+    const reconnectWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void reconnectMainProgram();
+      }
+    };
+    const reconnectWhenFocused = () => {
+      void reconnectMainProgram();
+    };
+    const reconnectWhenOnline = () => {
+      void reconnectMainProgram(true);
+    };
+
+    document.addEventListener("visibilitychange", reconnectWhenVisible);
+    window.addEventListener("focus", reconnectWhenFocused);
+    window.addEventListener("online", reconnectWhenOnline);
+
+    return () => {
+      document.removeEventListener("visibilitychange", reconnectWhenVisible);
+      window.removeEventListener("focus", reconnectWhenFocused);
+      window.removeEventListener("online", reconnectWhenOnline);
+    };
+  }, [loginUser?.id]);
+
+  useEffect(() => {
     if (!selectedUserId || state === "idle") return;
     void loadNotifications();
     loadStampSession(selectedUserId);
@@ -1300,11 +1347,25 @@ function App() {
     if (!("serviceWorker" in navigator)) return;
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data?.type !== "WORKPILOT_NOTIFICATION_CLICK") return;
-      void openNotificationTargetData(event.data.target, event.data.targetId);
+      const target = event.data.target || "";
+      const targetId = event.data.targetId || "";
+      if (!target || !targetId) return;
+      setPendingNotificationTarget({ target, targetId });
+      void reconnectMainProgram(true);
     };
     navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
     return () => navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
-  });
+  }, [loginUser?.id]);
+
+  useEffect(() => {
+    if (!pendingNotificationTarget || state !== "ready") return;
+    const target = pendingNotificationTarget;
+    void openNotificationTargetData(target.target, target.targetId).finally(() => {
+      setPendingNotificationTarget((current) =>
+        current?.target === target.target && current.targetId === target.targetId ? null : current
+      );
+    });
+  }, [pendingNotificationTarget, state, data.tasks.length, data.planning.length, data.projects.length]);
 
   useEffect(() => {
     if (state !== "ready") return;
@@ -3845,7 +3906,7 @@ function App() {
           <div className="connectionNotice">
             <strong>Hauptprogramm nicht verbunden</strong>
             <span>
-              Bitte WorkPilot360 auf Port 3001 starten. Danach oben auf Aktualisieren tippen.
+              Die App versucht automatisch, die Verbindung wiederherzustellen. Falls die Meldung bleibt, bitte oben auf Aktualisieren tippen.
             </span>
           </div>
         )}
