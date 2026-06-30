@@ -816,6 +816,7 @@ function App() {
   const [timerNow, setTimerNow] = useState(Date.now());
   const [stampMode, setStampMode] = useState<"project" | "unproductive">("project");
   const [stampProjectId, setStampProjectId] = useState("");
+  const [stampProjectSearch, setStampProjectSearch] = useState("");
   const [pendingUnproductiveStampComment, setPendingUnproductiveStampComment] = useState("");
   const [pendingUnproductiveStampLabel, setPendingUnproductiveStampLabel] = useState("");
   const [pendingStampStartComment, setPendingStampStartComment] = useState("");
@@ -1459,8 +1460,10 @@ function App() {
   }, [pendingProjectPhoto?.previewUrl]);
 
   useEffect(() => {
-    if (!session && !stampProjectId && data.projects[0]) setStampProjectId(data.projects[0].id);
-  }, [data.projects, session, stampProjectId]);
+    if (stampProjectId && !data.projects.some((project) => project.id === stampProjectId)) {
+      setStampProjectId("");
+    }
+  }, [data.projects, stampProjectId]);
 
   useEffect(() => {
     if (session) setStampProjectId("");
@@ -1619,6 +1622,24 @@ function App() {
     })
     .sort((a, b) => `${a.startTime}${a.title}`.localeCompare(`${b.startTime}${b.title}`));
   const currentPlanningEntry = activeUserDayPlanning.find((entry) => isPlanningEntryForActiveSession(entry));
+  const normalizedStampProjectSearch = normalizedText(stampProjectSearch);
+  const stampProjectResults = data.projects
+    .filter((project) => {
+      if (!normalizedStampProjectSearch) return true;
+      return normalizedText(
+        [
+          project.projectNumber,
+          project.title,
+          project.customer,
+          project.trade,
+          project.description,
+          project.responsibleName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      ).includes(normalizedStampProjectSearch);
+    })
+    .slice(0, normalizedStampProjectSearch ? 8 : 5);
   const switchReferenceMinutes = currentPlanningEntry
     ? minutesFromTime(currentPlanningEntry.endTime)
     : minutesFromTime(timeKey(new Date(timerNow)));
@@ -1869,6 +1890,57 @@ function App() {
     () => Array.from({ length: 7 }, (_, index) => addDays(dateFromKey(planningWeekStartKey), index)),
     [planningWeekStartKey]
   );
+
+  function projectSearchLabel(project: Project) {
+    return [project.projectNumber, project.title].filter(Boolean).join(" | ");
+  }
+
+  function renderStampProjectSearch() {
+    return (
+      <div className="projectSearchPicker">
+        <label className="projectSearchInput">
+          <Search size={16} />
+          <input
+            value={stampProjectSearch}
+            onChange={(event) => setStampProjectSearch(event.target.value)}
+            placeholder="Projekt suchen"
+          />
+        </label>
+
+        {selectedStampProject && (
+          <div className="selectedProjectPill">
+            <span>Ausgewählt</span>
+            <strong>{projectSearchLabel(selectedStampProject)}</strong>
+            {selectedStampProject.customer && <small>{selectedStampProject.customer}</small>}
+          </div>
+        )}
+
+        <div className="projectSearchResults" aria-label="Projekttreffer">
+          {stampProjectResults.map((project) => (
+            <button
+              className={project.id === stampProjectId ? "active" : ""}
+              key={project.id}
+              type="button"
+              onClick={() => {
+                setStampProjectId(project.id);
+                setStampProjectSearch(projectSearchLabel(project));
+                setPendingStampStartComment("");
+                setPendingUnproductiveStampComment("");
+                setPendingUnproductiveStampLabel("");
+              }}
+            >
+              <strong>{projectSearchLabel(project)}</strong>
+              <span>{[project.customer, project.trade].filter(Boolean).join(" | ") || "Projekt"}</span>
+            </button>
+          ))}
+          {stampProjectResults.length === 0 && (
+            <div className="projectSearchEmpty">Kein Projekt gefunden. Bitte Suchbegriff prüfen.</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const planningWeekEndKey = shiftDateKey(planningWeekStartKey, 6);
   const appointmentWeekEntries = useMemo(() => {
     return data.planning
@@ -2061,6 +2133,8 @@ function App() {
 
   function openStartDialog() {
     setStampError("");
+    setStampProjectId("");
+    setStampProjectSearch("");
     setIsStartDialogOpen(true);
   }
 
@@ -3664,6 +3738,7 @@ function App() {
                 onClick={() => {
                   setStampMode("unproductive");
                   setStampProjectId("");
+                  setStampProjectSearch("");
                   setPendingUnproductiveStampLabel("Unproduktiv");
                 }}
               >
@@ -3672,15 +3747,7 @@ function App() {
               </button>
             </div>
             {stampMode === "project" && (
-              <select value={stampProjectId} onChange={(event) => setStampProjectId(event.target.value)}>
-                {session && <option value="">Bitte auswählen</option>}
-                {data.projects.map((project) => (
-                  <option value={project.id} key={project.id}>
-                    {project.projectNumber ? `${project.projectNumber} | ` : ""}
-                    {project.title}
-                  </option>
-                ))}
-              </select>
+              renderStampProjectSearch()
             )}
           </div>
         )}
@@ -5734,6 +5801,7 @@ function App() {
                     onClick={() => {
                       setStampMode("unproductive");
                       setStampProjectId("");
+                      setStampProjectSearch("");
                       setPendingUnproductiveStampLabel("Unproduktiv");
                     }}
                   >
@@ -5742,14 +5810,7 @@ function App() {
                   </button>
                 </div>
                 {stampMode === "project" && (
-                  <select value={stampProjectId} onChange={(event) => setStampProjectId(event.target.value)}>
-                    {data.projects.map((project) => (
-                      <option value={project.id} key={project.id}>
-                        {project.projectNumber ? `${project.projectNumber} | ` : ""}
-                        {project.title}
-                      </option>
-                    ))}
-                  </select>
+                  renderStampProjectSearch()
                 )}
               </div>
 
@@ -5912,6 +5973,7 @@ function App() {
                         onClick={() => {
                           setStampMode("unproductive");
                           setStampProjectId("");
+                          setStampProjectSearch("");
                           setPendingStampStartComment("");
                           setPendingUnproductiveStampComment("Unproduktive Zeit");
                           setPendingUnproductiveStampLabel("Unproduktiv");
@@ -5921,23 +5983,7 @@ function App() {
                       </button>
                     </div>
                     {stampMode === "project" && !pendingStampStartComment && (
-                      <select
-                        value={stampProjectId}
-                        onChange={(event) => {
-                          setStampProjectId(event.target.value);
-                          setPendingStampStartComment("");
-                          setPendingUnproductiveStampComment("");
-                          setPendingUnproductiveStampLabel("");
-                        }}
-                      >
-                        <option value="">Bitte auswählen</option>
-                        {data.projects.map((project) => (
-                          <option value={project.id} key={project.id}>
-                            {project.projectNumber ? `${project.projectNumber} | ` : ""}
-                            {project.title}
-                          </option>
-                        ))}
-                      </select>
+                      renderStampProjectSearch()
                     )}
                   </details>
                   <label className="commentBox nextStampCommentBox">

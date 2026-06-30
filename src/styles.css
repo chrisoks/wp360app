@@ -1439,6 +1439,119 @@ button.homePhotoPill:disabled {
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.09);
 }
 
+.projectSearchPicker {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.projectSearchInput {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d7e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #607086;
+  padding: 0 11px;
+}
+
+.projectSearchInput input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #172033;
+  font: inherit;
+  font-weight: 850;
+}
+
+.selectedProjectPill {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  background: #ecfdf5;
+  padding: 8px 10px;
+}
+
+.selectedProjectPill span,
+.selectedProjectPill small {
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.selectedProjectPill strong {
+  min-width: 0;
+  color: #172033;
+  font-size: 0.88rem;
+  font-weight: 950;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.projectSearchResults {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.projectSearchResults button {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid #d7e4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  padding: 8px 10px;
+}
+
+.projectSearchResults button.active {
+  border-color: #0f6675;
+  background: #edfafa;
+  box-shadow: inset 3px 0 0 #0f6675;
+}
+
+.projectSearchResults strong,
+.projectSearchResults span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.projectSearchResults strong {
+  font-size: 0.86rem;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.projectSearchResults span {
+  color: #607086;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.projectSearchEmpty {
+  border: 1px dashed #cbd8e4;
+  border-radius: 8px;
+  color: #607086;
+  font-size: 0.82rem;
+  font-weight: 850;
+  padding: 10px;
+  text-align: center;
+}
+
 .commentBox {
   display: grid;
   gap: 7px;
@@ -4362,7 +4475,8 @@ button.projectCard:hover {
   box-sizing: border-box;
   width: min(720px, calc(100vw - 36px));
   max-height: min(860px, calc(100vh - 36px));
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid #cfdde8;
   border-radius: 8px;
   background: #f7fafc;
@@ -4380,6 +4494,10 @@ button.projectCard:hover {
   background: #f7fafc;
   box-shadow: 0 24px 76px rgba(2, 8, 23, 0.28);
   padding: 16px;
+}
+
+.startStampDialog {
+  width: min(460px, calc(100vw - 24px));
 }
 
 .notificationSheet {
