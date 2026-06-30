@@ -1917,22 +1917,35 @@ button.homePhotoPill:disabled {
 }
 
 .timeDayTotals {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .timeDayTotals span {
-  min-height: 22px;
-  padding: 3px 8px;
-  border: 1px solid #cfe0ee;
-  border-radius: 999px;
-  background: #ffffff;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 8px;
+  border: 1px solid #d7e4ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
   color: #172033;
-  font-size: 0.68rem;
+}
+
+.timeDayTotals small {
+  color: #607086;
+  font-size: 0.62rem;
   font-weight: 900;
+  line-height: 1;
+}
+
+.timeDayTotals strong {
+  color: #172033;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.05;
 }
 
 .timeDayGroup .timeEntryList {
@@ -5709,7 +5722,7 @@ button.projectCard:hover {
   }
 
   .timeDayTotals {
-    justify-content: flex-start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .homeDayPlanSummary {

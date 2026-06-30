@@ -4444,9 +4444,18 @@ function App() {
                             <span>{group.entries.length} Buchungen</span>
                           </div>
                           <div className="timeDayTotals">
-                            <span>Gesamt {millisecondsToHours(group.totalMs)}</span>
-                            <span>Projekt {millisecondsToHours(group.projectMs)}</span>
-                            <span>Unproduktiv {millisecondsToHours(group.unproductiveMs)}</span>
+                            <span>
+                              <small>Gesamt</small>
+                              <strong>{millisecondsToHours(group.totalMs)}</strong>
+                            </span>
+                            <span>
+                              <small>Projekt</small>
+                              <strong>{millisecondsToHours(group.projectMs)}</strong>
+                            </span>
+                            <span>
+                              <small>Unproduktiv</small>
+                              <strong>{millisecondsToHours(group.unproductiveMs)}</strong>
+                            </span>
                           </div>
                         </header>
                         <div className="timeEntryList detailed">
@@ -4501,9 +4510,18 @@ function App() {
                                   <span>{group.entries.length} Buchungen</span>
                                 </div>
                                 <div className="timeDayTotals">
-                                  <span>Gesamt {millisecondsToHours(group.totalMs)}</span>
-                                  <span>Projekt {millisecondsToHours(group.projectMs)}</span>
-                                  <span>Unproduktiv {millisecondsToHours(group.unproductiveMs)}</span>
+                                  <span>
+                                    <small>Gesamt</small>
+                                    <strong>{millisecondsToHours(group.totalMs)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Projekt</small>
+                                    <strong>{millisecondsToHours(group.projectMs)}</strong>
+                                  </span>
+                                  <span>
+                                    <small>Unproduktiv</small>
+                                    <strong>{millisecondsToHours(group.unproductiveMs)}</strong>
+                                  </span>
                                 </div>
                               </header>
                               <div className="timeEntryList detailed">
