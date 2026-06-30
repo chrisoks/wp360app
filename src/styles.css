@@ -992,6 +992,13 @@ button.homePhotoPill:disabled {
   line-height: 1;
 }
 
+.metric strong small {
+  margin-left: 2px;
+  color: inherit;
+  font-size: 0.62em;
+  font-weight: 900;
+}
+
 .metric.blue svg {
   color: #1f6feb;
 }

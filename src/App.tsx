@@ -1659,6 +1659,7 @@ function App() {
   const canUsePlanningSection = canUseCompanyTimeView || canUseTeamTimeView;
   const visibleSections = sections.filter((section) => section.id !== "planning" || canUsePlanningSection);
   const mobileSections = visibleSections.filter((section) => mobileSectionIds.includes(section.id));
+  const shouldShowGlobalSearch = activeSection === "tasks" || activeSection === "contacts" || activeSection === "team";
   useEffect(() => {
     if (activeSection === "planning" && !canUsePlanningSection) {
       setActiveSection("appointments");
@@ -3854,7 +3855,7 @@ function App() {
             <h1>{visibleSections.find((section) => section.id === activeSection)?.label ?? "WorkPilot360"}</h1>
           </div>
           <div className="topbarActions">
-            {activeSection !== "home" && (
+            {shouldShowGlobalSearch && (
               <label className="searchBox">
                 <Search size={17} />
                 <input
@@ -4335,23 +4336,26 @@ function App() {
             </div>
 
             <div className="timeMetrics">
-              <Metric icon={Clock3} label="Heute" value={Number((timeTodayMs / 3_600_000).toFixed(1))} tone="green" />
+              <Metric icon={Clock3} label="Heute" value={Number((timeTodayMs / 3_600_000).toFixed(1))} suffix="h" tone="green" />
               <Metric
                 icon={CalendarDays}
                 label="Diese Woche"
                 value={Number((timeWeekMs / 3_600_000).toFixed(1))}
+                suffix="h"
                 tone="blue"
               />
               <Metric
                 icon={ListChecks}
                 label="Dieser Monat"
                 value={Number((timeMonthMs / 3_600_000).toFixed(1))}
+                suffix="h"
                 tone="blue"
               />
               <Metric
                 icon={Coffee}
                 label="Unproduktiv"
                 value={Number((unproductiveMonthMs / 3_600_000).toFixed(1))}
+                suffix="h"
                 tone="amber"
               />
             </div>
@@ -6525,12 +6529,14 @@ function Metric({
   icon: Icon,
   label,
   value,
+  suffix = "",
   tone,
   compact = false,
 }: {
   icon: typeof Home;
   label: string;
   value: number;
+  suffix?: string;
   tone: string;
   compact?: boolean;
 }) {
@@ -6539,7 +6545,10 @@ function Metric({
       <Icon size={20} />
       <div>
         <span>{label}</span>
-        <strong>{value}</strong>
+        <strong>
+          {value}
+          {suffix && <small>{suffix}</small>}
+        </strong>
       </div>
     </article>
   );
