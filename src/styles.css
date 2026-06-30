@@ -2913,34 +2913,55 @@ button.planningBar:hover {
 
 .mobileWorkerEntries {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   padding: 12px 14px 14px;
 }
 
 .mobileWorkerEntry {
+  position: relative;
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-height: 62px;
-  padding: 10px;
-  border: 2px solid #d1deea;
+  padding: 11px 10px 11px 12px;
+  border: 2px solid #cfddea;
   border-radius: 8px;
-  background:
-    linear-gradient(90deg, rgba(15, 102, 117, 0.04), transparent 35%),
-    #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
-    0 8px 18px rgba(15, 23, 42, 0.065);
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 35, 52, 0.08);
   color: inherit;
   text-align: left;
+  overflow: hidden;
+}
+
+.mobileWorkerEntry::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #0f6675;
+}
+
+.mobileWorkerEntry.project::before {
+  background: #16a34a;
+}
+
+.mobileWorkerEntry.unproductive::before {
+  background: #d97706;
+}
+
+.mobileWorkerEntry.active::before,
+.mobileWorkerEntry.done::before {
+  background: #16a34a;
+}
+
+.mobileWorkerEntry.interrupted::before {
+  background: #f4ad00;
 }
 
 .mobileWorkerEntry:not(:disabled):hover {
   border-color: #9fb5c7;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
-    0 10px 22px rgba(15, 23, 42, 0.09);
+  box-shadow: 0 10px 22px rgba(15, 35, 52, 0.11);
 }
 
 .mobileWorkerEntry:disabled {
@@ -2980,6 +3001,11 @@ button.planningBar:hover {
   color: #617184;
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.mobileWorkerEntry > small.badge {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .tasksPanel {

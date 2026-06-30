@@ -5236,27 +5236,31 @@ function App() {
                         </i>
                       </header>
                       <div className="mobileWorkerEntries">
-                        {selectedAppointmentDay.entries.map((entry) => (
-                          <button
-                            className="mobileWorkerEntry"
-                            key={entry.id}
-                            type="button"
-                            onClick={() => entry.projectId && openProjectFromPlanning(entry)}
-                            disabled={!entry.projectId}
-                          >
-                            <time>
-                              {entry.startTime}
-                              <span>{entry.endTime}</span>
-                            </time>
-                            <div>
-                              <strong>{entry.title}</strong>
-                              <span>{entry.projectLabel || entry.customer || entry.groupName}</span>
-                            </div>
-                            <small className={`badge ${statusClass(entry.approvalStatus)}`}>
-                              {entry.approvalStatus || "confirmed"}
-                            </small>
-                          </button>
-                        ))}
+                        {selectedAppointmentDay.entries.map((entry) => {
+                          const appointmentStatus = getPlanningEntryStatus(entry);
+                          const isProject = Boolean(entry.projectId);
+                          return (
+                            <button
+                              className={`mobileWorkerEntry ${isProject ? "project" : "unproductive"} ${appointmentStatus}`}
+                              key={entry.id}
+                              type="button"
+                              onClick={() => entry.projectId && openProjectFromPlanning(entry)}
+                              disabled={!entry.projectId}
+                            >
+                              <time>
+                                {entry.startTime}
+                                <span>{entry.endTime}</span>
+                              </time>
+                              <div>
+                                <strong>{entry.title}</strong>
+                                <span>{entry.projectLabel || entry.customer || entry.groupName}</span>
+                              </div>
+                              <small className={`badge ${statusClass(entry.approvalStatus)}`}>
+                                {entry.approvalStatus || "confirmed"}
+                              </small>
+                            </button>
+                          );
+                        })}
                         {selectedAppointmentDay.entries.length === 0 && <Empty text="Keine eigenen Termine an diesem Tag." />}
                       </div>
                     </article>
