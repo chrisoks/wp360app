@@ -1625,7 +1625,7 @@ function App() {
   const normalizedStampProjectSearch = normalizedText(stampProjectSearch);
   const stampProjectResults = data.projects
     .filter((project) => {
-      if (!normalizedStampProjectSearch) return true;
+      if (!normalizedStampProjectSearch) return false;
       return normalizedText(
         [
           project.projectNumber,
@@ -1639,7 +1639,7 @@ function App() {
           .join(" ")
       ).includes(normalizedStampProjectSearch);
     })
-    .slice(0, normalizedStampProjectSearch ? 8 : 5);
+    .slice(0, 8);
   const switchReferenceMinutes = currentPlanningEntry
     ? minutesFromTime(currentPlanningEntry.endTime)
     : minutesFromTime(timeKey(new Date(timerNow)));
@@ -1933,7 +1933,10 @@ function App() {
               <span>{[project.customer, project.trade].filter(Boolean).join(" | ") || "Projekt"}</span>
             </button>
           ))}
-          {stampProjectResults.length === 0 && (
+          {!normalizedStampProjectSearch && (
+            <div className="projectSearchEmpty">Bitte Projektnummer, Kunde oder Projektnamen eingeben.</div>
+          )}
+          {normalizedStampProjectSearch && stampProjectResults.length === 0 && (
             <div className="projectSearchEmpty">Kein Projekt gefunden. Bitte Suchbegriff prüfen.</div>
           )}
         </div>
@@ -3742,7 +3745,6 @@ function App() {
                   setPendingUnproductiveStampLabel("Unproduktiv");
                 }}
               >
-                <Coffee size={16} />
                 Unproduktiv
               </button>
             </div>
@@ -5805,7 +5807,6 @@ function App() {
                       setPendingUnproductiveStampLabel("Unproduktiv");
                     }}
                   >
-                    <Coffee size={16} />
                     Unproduktiv
                   </button>
                 </div>
