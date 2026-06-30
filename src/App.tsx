@@ -19,7 +19,6 @@
   Search,
   Send,
   Square,
-  UserRound,
   Users,
 } from "lucide-react";
 import { Fragment, FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -1659,7 +1658,6 @@ function App() {
   const canUsePlanningSection = canUseCompanyTimeView || canUseTeamTimeView;
   const visibleSections = sections.filter((section) => section.id !== "planning" || canUsePlanningSection);
   const mobileSections = visibleSections.filter((section) => mobileSectionIds.includes(section.id));
-  const shouldShowGlobalSearch = activeSection === "tasks" || activeSection === "contacts" || activeSection === "team";
   useEffect(() => {
     if (activeSection === "planning" && !canUsePlanningSection) {
       setActiveSection("appointments");
@@ -3855,16 +3853,6 @@ function App() {
             <h1>{visibleSections.find((section) => section.id === activeSection)?.label ?? "WorkPilot360"}</h1>
           </div>
           <div className="topbarActions">
-            {shouldShowGlobalSearch && (
-              <label className="searchBox">
-                <Search size={17} />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Suchen"
-                />
-              </label>
-            )}
             <button
               className={`iconButton notificationButton ${unreadNotifications.length ? "active" : ""}`}
               type="button"
@@ -3879,17 +3867,6 @@ function App() {
             >
               <Bell size={18} />
               {unreadNotifications.length > 0 && <span>{unreadNotifications.length}</span>}
-            </button>
-            <div className="currentUserBadge" title={loginUser.email}>
-              {activeUser?.profileImageDataUrl ? (
-                <img src={activeUser.profileImageDataUrl} alt="" />
-              ) : (
-                <UserRound size={16} />
-              )}
-              <span>{activeUser?.name ?? loginUser.name}</span>
-            </div>
-            <button className="iconButton" type="button" onClick={() => loadData(loginUser.id)} title="Aktualisieren">
-              <RefreshCcw size={18} />
             </button>
             <button
               className="iconButton logoutButton"
@@ -3907,7 +3884,7 @@ function App() {
           <div className="connectionNotice">
             <strong>Hauptprogramm nicht verbunden</strong>
             <span>
-              Die App versucht automatisch, die Verbindung wiederherzustellen. Falls die Meldung bleibt, bitte oben auf Aktualisieren tippen.
+              Die App versucht automatisch, die Verbindung wiederherzustellen. Falls die Meldung bleibt, bitte die App kurz erneut öffnen.
             </span>
           </div>
         )}
@@ -4605,6 +4582,14 @@ function App() {
                 </div>
                 <ListChecks size={20} />
               </div>
+              <label className="sectionSearchBox">
+                <Search size={17} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Aufgaben suchen"
+                />
+              </label>
               <div className="taskSummaryGrid">
                 <div className="taskSummaryTile">
                   <span>Offen</span>

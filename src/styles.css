@@ -278,21 +278,13 @@ h3 {
   gap: 10px;
 }
 
-.homeTopbar .topbarActions {
-  flex: 0 0 min(360px, 52vw);
-}
-
-.homeTopbar .currentUserBadge {
-  flex: 1;
+.sectionSearchBox {
   min-width: 0;
-}
-
-.searchBox {
-  min-width: min(320px, 34vw);
   min-height: 42px;
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
   padding: 0 12px;
   border: 1px solid #d7dee8;
   border-radius: 8px;
@@ -300,42 +292,12 @@ h3 {
   color: #617184;
 }
 
-.searchBox input {
+.sectionSearchBox input {
   min-width: 0;
   width: 100%;
   border: 0;
   outline: 0;
   color: #172033;
-}
-
-.currentUserBadge {
-  min-width: 0;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 1px solid #d7dee8;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #172033;
-  font-size: 0.86rem;
-  font-weight: 900;
-}
-
-.currentUserBadge img {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  object-fit: cover;
-}
-
-.currentUserBadge span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 select,
@@ -5443,26 +5405,9 @@ button.projectCard:hover {
   .topbarActions {
     order: 3;
     width: 100%;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 42px 42px 42px 42px;
+    display: flex;
+    justify-content: space-between;
     gap: 8px;
-  }
-
-  .homeTopbar .topbarActions {
-    grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
-  }
-
-  .searchBox {
-    min-width: 0;
-  }
-
-  .currentUserBadge {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .currentUserBadge span {
-    display: none;
   }
 
   .contentGrid,
@@ -5824,12 +5769,7 @@ button.projectCard:hover {
   }
 
   .topbarActions {
-    grid-template-columns: minmax(0, 1fr) 36px 36px 36px 36px;
     gap: 6px;
-  }
-
-  .homeTopbar .topbarActions {
-    grid-template-columns: minmax(0, 1fr) 36px 36px 36px;
   }
 
   .topbarLogo {
@@ -5840,18 +5780,12 @@ button.projectCard:hover {
     transform: none;
   }
 
-  .currentUserBadge,
   .iconButton {
     min-height: 36px;
     width: 36px;
   }
 
-  .currentUserBadge img {
-    width: 22px;
-    height: 22px;
-  }
-
-  .searchBox {
+  .sectionSearchBox {
     min-height: 36px;
     padding: 0 9px;
   }
