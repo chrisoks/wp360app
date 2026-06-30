@@ -1830,9 +1830,9 @@ button.homePhotoPill:disabled {
 .timePeriodSwitch {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-  margin-bottom: 14px;
-  padding: 5px;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 4px;
   border: 1px solid #d3e0eb;
   border-radius: 8px;
   background: #edf4f8;
@@ -1855,7 +1855,7 @@ button.homePhotoPill:disabled {
 
 .timeGroupedList {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .timeGroupedList.nested {
@@ -1864,20 +1864,19 @@ button.homePhotoPill:disabled {
 
 .timeDayGroup,
 .timeEmployeeGroup {
-  border: 1px solid #d7e4ef;
+  border: 2px solid #c9d9e7;
   border-radius: 8px;
   background: #ffffff;
   overflow: hidden;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+  box-shadow: 0 14px 34px rgba(15, 35, 52, 0.09);
 }
 
 .timeDayGroup > header,
 .timeEmployeeGroup > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
-  padding: 13px 14px;
+  padding: 14px 15px 12px;
   border-bottom: 1px solid #e4ebf2;
   background: linear-gradient(180deg, #f9fcfe 0%, #f2f7fa 100%);
 }
@@ -1897,6 +1896,8 @@ button.homePhotoPill:disabled {
 .timeDayGroup > header strong,
 .timeEmployeeGroup > header strong {
   color: inherit;
+  font-size: 1rem;
+  line-height: 1.2;
 }
 
 .timeDayGroup > header span,
@@ -1918,42 +1919,66 @@ button.homePhotoPill:disabled {
 .timeDayTotals {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .timeDayTotals span {
-  min-height: 25px;
-  padding: 4px 9px;
+  min-height: 22px;
+  padding: 3px 8px;
   border: 1px solid #cfe0ee;
   border-radius: 999px;
   background: #ffffff;
   color: #172033;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 900;
 }
 
 .timeDayGroup .timeEntryList {
-  padding: 12px;
+  padding: 12px 12px 14px;
 }
 
 .timeEntryCard.detailed {
-  grid-template-columns: 96px minmax(0, 1fr) auto;
-  border-color: #d9e6f0;
-  background:
-    linear-gradient(90deg, rgba(15, 102, 117, 0.055), transparent 34%),
-    #ffffff;
-  box-shadow: none;
+  position: relative;
+  grid-template-columns: minmax(72px, 0.34fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  border: 2px solid #cfddea;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 35, 52, 0.08);
+  overflow: hidden;
+}
+
+.timeEntryCard.detailed::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #0f6675;
+}
+
+.timeEntryCard.detailed.project::before {
+  background: #16a34a;
+}
+
+.timeEntryCard.detailed.unproductive::before {
+  background: #d97706;
+}
+
+.timeEntryCard.detailed.interrupted::before {
+  background: #f4ad00;
 }
 
 .timeEntryCard.detailed time {
   display: grid;
   gap: 3px;
+  padding-left: 5px;
 }
 
 .timeEntryCard.detailed time strong {
   color: #10596b;
+  font-size: 0.92rem;
+  line-height: 1.2;
 }
 
 .timeEntryCard.detailed time span {
@@ -1972,6 +1997,7 @@ button.homePhotoPill:disabled {
 .timeEntryMeta {
   display: grid;
   justify-items: end;
+  align-content: start;
   gap: 7px;
 }
 

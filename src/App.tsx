@@ -4454,7 +4454,10 @@ function App() {
                             const isInterrupted = entry.completionStatus === "interrupted";
                             const isProject = entry.mode === "project";
                             return (
-                              <article className="timeEntryCard detailed" key={entry.id}>
+                              <article
+                                className={`timeEntryCard detailed ${isInterrupted ? "interrupted" : isProject ? "project" : "unproductive"}`}
+                                key={entry.id}
+                              >
                                 <time>
                                   <strong>
                                     {entry.startTime} - {entry.endTime}
@@ -4508,7 +4511,10 @@ function App() {
                                   const isInterrupted = entry.completionStatus === "interrupted";
                                   const isProject = entry.mode === "project";
                                   return (
-                                    <article className="timeEntryCard detailed" key={entry.id}>
+                                    <article
+                                      className={`timeEntryCard detailed ${isInterrupted ? "interrupted" : isProject ? "project" : "unproductive"}`}
+                                      key={entry.id}
+                                    >
                                       <time>
                                         <strong>
                                           {entry.startTime} - {entry.endTime}
