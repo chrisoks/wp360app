@@ -2378,8 +2378,12 @@ function App() {
     return isImmocareProject(data.projects.find((project) => project.id === projectId));
   }
 
-  function isProjectPhotoLoading(projectId?: string) {
-    return projectLogbookLoadingKeys.includes("summary") || Boolean(projectId && projectLogbookLoadingKeys.includes(`project:${projectId}`));
+  function isProjectPhotoDetailLoading(projectId?: string) {
+    return Boolean(projectId && projectLogbookLoadingKeys.includes(`project:${projectId}`));
+  }
+
+  function isProjectPhotoSummaryLoading() {
+    return projectLogbookLoadingKeys.includes("summary");
   }
 
   function getProjectLogbookMonth(projectId: string) {
@@ -4244,7 +4248,7 @@ function App() {
                   const showTargetProgress = isCurrentSession || targetProgress.percent > 0;
                   const visibleProgressPercent = Math.min(100, Math.round(targetProgress.percent));
                   const showProjectPhotos = canUseProjectPhotos(entry.projectId);
-                  const projectPhotosLoading = showProjectPhotos && isProjectPhotoLoading(entry.projectId);
+                  const projectPhotosLoading = showProjectPhotos && isProjectPhotoSummaryLoading();
 
                   return (
                     <article
@@ -5272,13 +5276,13 @@ function App() {
                   <div className="projectPhotoGallery">
                     {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
                       const images = getProjectPhotoAttachments(selectedProject.id, category);
-                      const isLoading = isProjectPhotoLoading(selectedProject.id);
+                      const isLoading = isProjectPhotoDetailLoading(selectedProject.id);
                       return (
                         <section key={category}>
                           <div className="projectPhotoGalleryHeader">
                             <div>
                               <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
-                              <h3>{isLoading ? "Wird geladen..." : `${images.length} Bilder`}</h3>
+                              <h3>{images.length ? `${images.length} Bilder` : isLoading ? "Wird geladen..." : "0 Bilder"}</h3>
                             </div>
                             <button
                               type="button"
@@ -5288,9 +5292,7 @@ function App() {
                               Aufnehmen
                             </button>
                           </div>
-                          {isLoading ? (
-                            <div className="projectPhotoEmpty">Bilder werden geladen...</div>
-                          ) : images.length ? (
+                          {images.length ? (
                             <div className="projectPhotoThumbGrid">
                               {images.map((image) => (
                                 <a
@@ -5304,6 +5306,8 @@ function App() {
                                 </a>
                               ))}
                             </div>
+                          ) : isLoading ? (
+                            <div className="projectPhotoEmpty">Bilder werden geladen...</div>
                           ) : (
                             <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
                           )}
@@ -6529,13 +6533,13 @@ function App() {
             </header>
             {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
               const images = getProjectPhotoAttachments(photoGalleryProjectId, category);
-              const isLoading = isProjectPhotoLoading(photoGalleryProjectId);
+              const isLoading = isProjectPhotoDetailLoading(photoGalleryProjectId);
               return (
                 <section key={category} className="projectPhotoDialogSection">
                   <div className="projectPhotoGalleryHeader">
                     <div>
                       <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
-                      <h3>{isLoading ? "Wird geladen..." : `${images.length} Bilder`}</h3>
+                      <h3>{images.length ? `${images.length} Bilder` : isLoading ? "Wird geladen..." : "0 Bilder"}</h3>
                     </div>
                     <button
                       type="button"
@@ -6545,9 +6549,7 @@ function App() {
                       Aufnehmen
                     </button>
                   </div>
-                  {isLoading ? (
-                    <div className="projectPhotoEmpty">Bilder werden geladen...</div>
-                  ) : images.length ? (
+                  {images.length ? (
                     <div className="projectPhotoThumbGrid">
                       {images.map((image) => (
                         <a
@@ -6561,6 +6563,8 @@ function App() {
                         </a>
                       ))}
                     </div>
+                  ) : isLoading ? (
+                    <div className="projectPhotoEmpty">Bilder werden geladen...</div>
                   ) : (
                     <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
                   )}
