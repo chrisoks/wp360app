@@ -140,6 +140,11 @@ type LoginUser = Pick<User, "id" | "name" | "email" | "profileImageDataUrl" | "p
   dailyWorkHours?: number;
 };
 
+type AuthSessionResponse = {
+  authenticated?: boolean;
+  user?: LoginUser;
+};
+
 type Project = {
   id: string;
   projectNumber?: string;
@@ -148,6 +153,8 @@ type Project = {
   status?: string;
   description?: string;
   trade?: string;
+  projectType?: string;
+  branch?: string;
   billingInterval?: string;
   projectKind?: string;
   responsibleName?: string;
@@ -368,15 +375,39 @@ function endpoint(path: string) {
   return `${apiBase}${path}`;
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(endpoint(path), {
+class ApiError extends Error {
+  status: number;
+  path: string;
+
+  constructor(path: string, status: number, message?: string) {
+    super(message || `${path}: ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.path = path;
+  }
+}
+
+function isApiStatus(error: unknown, status: number) {
+  return error instanceof ApiError && error.status === status;
+}
+
+async function apiFetch(path: string, init?: RequestInit) {
+  return fetch(endpoint(path), {
     ...init,
+    credentials: "include",
     headers: {
       Accept: "application/json",
       ...(init?.headers ?? {}),
     },
   });
-  if (!response.ok) throw new Error(`${path}: ${response.status}`);
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await apiFetch(path, init);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(path, response.status, body?.error || `${path}: ${response.status}`);
+  }
   return response.json() as Promise<T>;
 }
 
@@ -417,6 +448,10 @@ function minutesToHours(minutes?: number | null) {
 }
 
 function millisecondsToHours(milliseconds: number) {
+  if (milliseconds > 0 && milliseconds < 60_000) return "unter 1 min";
+  if (milliseconds > 0 && milliseconds < 6 * 60_000) {
+    return `${Math.max(1, Math.round(milliseconds / 60_000))} min`;
+  }
   return `${(milliseconds / 3_600_000).toLocaleString("de-DE", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
@@ -890,8 +925,11 @@ function App() {
   const afterPhotoInputRef = useRef<HTMLInputElement>(null);
   const isProjectLogbookLoadingRef = useRef(false);
   const hasProjectLogbookLoadedRef = useRef(false);
+  const projectLogbookRequestsRef = useRef(new Map<string, Promise<ProjectLogbookEntry[]>>());
   const reconnectRequestRef = useRef<Promise<void> | null>(null);
+  const sessionCheckRequestRef = useRef<Promise<boolean> | null>(null);
   const lastReconnectAttemptRef = useRef(0);
+  const [projectLogbookLoadingKeys, setProjectLogbookLoadingKeys] = useState<string[]>([]);
 
   const activeUser = useMemo(() => {
     return data.users.find((user) => user.id === selectedUserId) ?? data.users[0];
@@ -912,6 +950,95 @@ function App() {
       );
   }, [allowedPlanningKeys]);
 
+  function persistLoginUser(user: LoginUser) {
+    const serializedUser = JSON.stringify(user);
+    if (localStorage.getItem(loginStorageKey)) {
+      localStorage.setItem(loginStorageKey, serializedUser);
+      sessionStorage.removeItem(loginSessionStorageKey);
+      return;
+    }
+    if (sessionStorage.getItem(loginSessionStorageKey)) {
+      sessionStorage.setItem(loginSessionStorageKey, serializedUser);
+      return;
+    }
+    localStorage.setItem(loginStorageKey, serializedUser);
+  }
+
+  async function clearPwaCaches() {
+    if ("caches" in window) {
+      const keys = await caches.keys().catch(() => []);
+      await Promise.all(keys.filter((key) => key.startsWith("workpilot360-pwa")).map((key) => caches.delete(key))).catch(
+        () => undefined
+      );
+    }
+    navigator.serviceWorker?.controller?.postMessage({ type: "WORKPILOT_CLEAR_CACHES" });
+  }
+
+  function clearLocalSessionState(message = "") {
+    localStorage.removeItem(loginStorageKey);
+    sessionStorage.removeItem(loginSessionStorageKey);
+    localStorage.removeItem("workpilot360-pwa-stamp-session");
+    setIsLogoutDialogOpen(false);
+    setLoginUser(null);
+    setSelectedUserId("");
+    setSession(null);
+    setData(emptyData);
+    setState("idle");
+    setError("");
+    setStampError("");
+    setActiveSection("home");
+    setPendingProjectPhoto(null);
+    setPhotoGalleryProjectId("");
+    setPhotoCaptureTarget(null);
+    setUploadingPhotoCategory("");
+    setPhotoUploadError("");
+    if (message) setLoginError(message);
+    void clearPwaCaches();
+  }
+
+  function handleAuthExpired() {
+    clearLocalSessionState("Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.");
+  }
+
+  async function validateServerSession() {
+    if (!loginUser) return false;
+    if (sessionCheckRequestRef.current) return sessionCheckRequestRef.current;
+
+    const request = (async () => {
+      try {
+        const sessionResponse = await fetchJson<AuthSessionResponse>("/api/auth/session", { cache: "no-store" });
+        if (!sessionResponse.authenticated || !sessionResponse.user?.id) {
+          handleAuthExpired();
+          return false;
+        }
+        setLoginUser(sessionResponse.user);
+        persistLoginUser(sessionResponse.user);
+        setLoginError("");
+        return true;
+      } catch (sessionError) {
+        if (isApiStatus(sessionError, 401)) {
+          handleAuthExpired();
+          return false;
+        }
+        if (!navigator.onLine) {
+          setError("Das Gerät ist offline. Die Verbindung wird erneut geprüft, sobald du wieder online bist.");
+          return false;
+        }
+        setError(
+          sessionError instanceof Error
+            ? `Verbindung zum Hauptprogramm konnte nicht geprüft werden: ${sessionError.message}`
+            : "Verbindung zum Hauptprogramm konnte nicht geprüft werden."
+        );
+        return false;
+      } finally {
+        sessionCheckRequestRef.current = null;
+      }
+    })();
+
+    sessionCheckRequestRef.current = request;
+    return request;
+  }
+
   async function loadStampSession(userId = selectedUserId) {
     if (!userId) {
       setSession(null);
@@ -926,6 +1053,15 @@ function App() {
       setStampError("");
       return activeSession;
     } catch (loadError) {
+      if (isApiStatus(loadError, 401)) {
+        setStampError("Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.");
+        handleAuthExpired();
+        return null;
+      }
+      if (isApiStatus(loadError, 403)) {
+        setStampError("Du bist angemeldet, hast aber keine Berechtigung für diesen Stempelstatus.");
+        return null;
+      }
       setStampError(
         loadError instanceof Error
           ? `Stempelstatus konnte nicht geladen werden: ${loadError.message}`
@@ -939,18 +1075,26 @@ function App() {
     setState("loading");
     setError("");
     const errors: string[] = [];
+    let authExpired = false;
     const safeFetch = async <T,>(path: string, fallback: T): Promise<T> => {
       try {
         return await fetchJson<T>(path);
       } catch (loadError) {
+        if (isApiStatus(loadError, 401)) {
+          authExpired = true;
+          return fallback;
+        }
+        if (isApiStatus(loadError, 403)) {
+          errors.push(`${path}: keine Berechtigung`);
+          return fallback;
+        }
         errors.push(loadError instanceof Error ? loadError.message : path);
         return fallback;
       }
     };
 
-      const [tasks, contacts, users, projects, planning, absences, timeEntries] = await Promise.all([
+      const [tasks, users, projects, planning, absences, timeEntries] = await Promise.all([
       safeFetch<Task[]>("/api/tasks", []),
-      safeFetch<Contact[]>("/api/contacts", []),
       safeFetch<User[]>("/api/users", []),
       safeFetch<Project[]>("/api/hero/projects", []),
       safeFetch<PlanningEntry[]>("/api/planning-entries", []),
@@ -966,10 +1110,14 @@ function App() {
         )
       : [];
 
+    if (authExpired) {
+      handleAuthExpired();
+      return;
+    }
+
     setData((current) => ({
       ...current,
       tasks,
-      contacts,
       users,
       projects,
       planning,
@@ -997,11 +1145,29 @@ function App() {
     if (!force && now - lastReconnectAttemptRef.current < 15000) return;
 
     lastReconnectAttemptRef.current = now;
-    const request = loadData(loginUser.id).finally(() => {
+    const request = (async () => {
+      const sessionIsValid = await validateServerSession();
+      if (!sessionIsValid) return;
+      await loadData(loginUser.id);
+    })().finally(() => {
       reconnectRequestRef.current = null;
     });
     reconnectRequestRef.current = request;
     await request;
+  }
+
+  async function loadContacts() {
+    try {
+      const contacts = await fetchJson<Contact[]>("/api/contacts");
+      setData((current) => ({ ...current, contacts }));
+      setError("");
+    } catch (contactsError) {
+      if (isApiStatus(contactsError, 401)) {
+        handleAuthExpired();
+        return;
+      }
+      setError(contactsError instanceof Error ? contactsError.message : "Kontakte konnten nicht geladen werden.");
+    }
   }
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
@@ -1015,10 +1181,9 @@ function App() {
     setIsLoggingIn(true);
     setLoginError("");
     try {
-      const response = await fetch(endpoint("/api/auth/login"), {
+      const response = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: {
-          Accept: "application/json",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password: loginPassword }),
@@ -1046,16 +1211,9 @@ function App() {
     }
   }
 
-  function logout() {
-    localStorage.removeItem(loginStorageKey);
-    sessionStorage.removeItem(loginSessionStorageKey);
-    setIsLogoutDialogOpen(false);
-    setLoginUser(null);
-    setSelectedUserId("");
-    setSession(null);
-    setData(emptyData);
-    setState("idle");
-    setActiveSection("home");
+  async function logout() {
+    await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    clearLocalSessionState("");
   }
 
   async function refreshPlanningData() {
@@ -1274,10 +1432,15 @@ function App() {
   }
 
   async function loadProjectLogbookEntries(force = false, projectId = "") {
-    if (!force && hasProjectLogbookLoadedRef.current) return data.projectLogbookEntries;
-    if (isProjectLogbookLoadingRef.current) return data.projectLogbookEntries;
+    const requestKey = projectId ? `project:${projectId}` : "summary";
+    if (!force && !projectId && hasProjectLogbookLoadedRef.current) return data.projectLogbookEntries;
+    const existingRequest = projectLogbookRequestsRef.current.get(requestKey);
+    if (existingRequest) return existingRequest;
+
     isProjectLogbookLoadingRef.current = true;
-    try {
+    setProjectLogbookLoadingKeys((current) => (current.includes(requestKey) ? current : [...current, requestKey]));
+
+    const request = (async () => {
       const params = new URLSearchParams();
       const actorId = activeUser?.id || selectedUserId || loginUser?.id || "";
       if (actorId) params.set("actorId", actorId);
@@ -1297,17 +1460,27 @@ function App() {
       }));
       setError("");
       return entries;
+    })();
+
+    projectLogbookRequestsRef.current.set(requestKey, request);
+    try {
+      return await request;
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Projektlogbuch konnte nicht geladen werden.");
+      if (isApiStatus(loadError, 401)) handleAuthExpired();
+      else setError(loadError instanceof Error ? loadError.message : "Projektlogbuch konnte nicht geladen werden.");
       return data.projectLogbookEntries;
     } finally {
-      isProjectLogbookLoadingRef.current = false;
+      projectLogbookRequestsRef.current.delete(requestKey);
+      isProjectLogbookLoadingRef.current = projectLogbookRequestsRef.current.size > 0;
+      setProjectLogbookLoadingKeys((current) => current.filter((key) => key !== requestKey));
     }
   }
 
   useEffect(() => {
     if (!loginUser) return;
-    loadData(loginUser.id);
+    void validateServerSession().then((sessionIsValid) => {
+      if (sessionIsValid) void loadData(loginUser.id);
+    });
   }, []);
 
   useEffect(() => {
@@ -1454,6 +1627,11 @@ function App() {
   }, [activeSection, selectedUserId]);
 
   useEffect(() => {
+    if (activeSection !== "contacts" || data.contacts.length > 0) return;
+    void loadContacts();
+  }, [activeSection, data.contacts.length]);
+
+  useEffect(() => {
     return () => {
       if (pendingProjectPhoto?.previewUrl) URL.revokeObjectURL(pendingProjectPhoto.previewUrl);
     };
@@ -1588,8 +1766,8 @@ function App() {
 
   const filteredContacts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
+    if (!normalized) return [];
     return data.contacts.filter((contact) => {
-      if (!normalized) return true;
       return [
         contactName(contact),
         contact.email,
@@ -1738,6 +1916,7 @@ function App() {
   const unproductiveMonthMs = Math.max(0, timeMonthMs - productiveMonthMs);
   const timeEntryNeedsPhotoDocumentation = (entry: ProjectTimeEntry) => {
     if (entry.mode !== "project" || !entry.projectId) return false;
+    if (!canUseProjectPhotos(entry.projectId)) return false;
     const counts = getProjectPhotoCounts(entry.projectId);
     return counts.before === 0 || counts.after === 0;
   };
@@ -1848,6 +2027,14 @@ function App() {
   const representativeOptions = data.users.filter(
     (user) => user.id !== activeUser?.id && user.isActive !== false
   );
+  const activeTeamUsers = useMemo(() => {
+    const byId = new Map<string, User>();
+    data.users.forEach((user) => {
+      if (user.isActive === false || byId.has(user.id)) return;
+      byId.set(user.id, user);
+    });
+    return [...byId.values()].sort((first, second) => first.name.localeCompare(second.name, "de"));
+  }, [data.users]);
   const todayWorkedMs = todayTimeEntries.reduce(
     (sum, entry) => sum + Math.max(0, entry.durationMs - entry.pauseMs),
     0
@@ -1883,7 +2070,7 @@ function App() {
       })
     : [];
   const activeProjectPhotoCounts = useMemo(() => {
-    if (!session || session.mode !== "project") return { before: 0, after: 0 };
+    if (!session || session.mode !== "project" || !canUseProjectPhotos(session.projectId)) return { before: 0, after: 0 };
     return getProjectPhotoCounts(session.projectId);
   }, [data.projectLogbookEntries, session?.mode, session?.projectId]);
   const utilizationDays = useMemo(
@@ -2179,6 +2366,22 @@ function App() {
     );
   }
 
+  function isImmocareProject(project?: Project) {
+    if (!project) return false;
+    const projectType = normalizedText(project.projectType);
+    const branch = normalizedText(project.branch);
+    return projectType.includes("immocare") || branch.includes("immocare");
+  }
+
+  function canUseProjectPhotos(projectId?: string) {
+    if (!projectId) return false;
+    return isImmocareProject(data.projects.find((project) => project.id === projectId));
+  }
+
+  function isProjectPhotoLoading(projectId?: string) {
+    return projectLogbookLoadingKeys.includes("summary") || Boolean(projectId && projectLogbookLoadingKeys.includes(`project:${projectId}`));
+  }
+
   function getProjectLogbookMonth(projectId: string) {
     const project = data.projects.find((item) => item.id === projectId);
     if (!isRecurringProject(project)) return "";
@@ -2189,14 +2392,21 @@ function App() {
     return normalizeDateKeyValue(plannedEntry?.date).slice(0, 7) || monthKey();
   }
 
+  function entryMatchesProjectMonth(entry: ProjectLogbookEntry, projectMonth: string) {
+    if (!projectMonth) return true;
+    const entryMonth = entry.projectMonth || normalizeDateKeyValue(entry.date).slice(0, 7);
+    return entryMonth === projectMonth;
+  }
+
   function getProjectPhotoCounts(projectId?: string, entries = data.projectLogbookEntries) {
     if (!projectId) return { before: 0, after: 0 };
+    if (!canUseProjectPhotos(projectId)) return { before: 0, after: 0 };
     const projectMonth = getProjectLogbookMonth(projectId);
 
     const countImages = (category: "Vorherbilder" | "Nachherbilder") =>
       entries
         .filter((entry) => entry.projectId === projectId && entry.title === `Bilder: ${category}`)
-        .filter((entry) => !projectMonth || entry.projectMonth === projectMonth)
+        .filter((entry) => entryMatchesProjectMonth(entry, projectMonth))
         .reduce(
           (sum, entry) => sum + entry.attachments.filter((attachment) => attachment.type === "Bild").length,
           0
@@ -2209,10 +2419,11 @@ function App() {
   }
 
   function getProjectPhotoAttachments(projectId: string, category: "Vorherbilder" | "Nachherbilder") {
+    if (!canUseProjectPhotos(projectId)) return [];
     const projectMonth = getProjectLogbookMonth(projectId);
     return data.projectLogbookEntries
       .filter((entry) => entry.projectId === projectId && entry.title === `Bilder: ${category}`)
-      .filter((entry) => !projectMonth || entry.projectMonth === projectMonth)
+      .filter((entry) => entryMatchesProjectMonth(entry, projectMonth))
       .flatMap((entry) =>
         entry.attachments
           .filter((attachment) => attachment.type === "Bild" && attachment.dataUrl)
@@ -2619,7 +2830,7 @@ function App() {
     }
 
     try {
-      await fetch(endpoint("/api/stamp-session"), {
+      await apiFetch("/api/stamp-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2666,7 +2877,7 @@ function App() {
     }
 
     try {
-      await fetch(endpoint("/api/stamp-session"), {
+      await apiFetch("/api/stamp-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2733,7 +2944,7 @@ function App() {
   async function stopCurrentServerSession(comment: string) {
     if (!session) return null;
 
-    const response = await fetch(endpoint("/api/stamp-session"), {
+    const response = await apiFetch("/api/stamp-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2780,6 +2991,10 @@ function App() {
 
   async function openProjectPhotoCamera(category: ProjectPhotoCategory, projectId = session?.projectId ?? "") {
     if (!projectId) return;
+    if (!canUseProjectPhotos(projectId)) {
+      setPhotoUploadError("Vorher-/Nachherbilder sind nur für OK-immocare-Projekte vorgesehen.");
+      return;
+    }
     const entries = await loadProjectLogbookEntries(true, projectId);
     const counts = getProjectPhotoCounts(projectId, entries);
     const count = category === "Vorherbilder" ? counts.before : counts.after;
@@ -2796,6 +3011,10 @@ function App() {
 
   async function openProjectPhotoGallery(projectId: string) {
     if (!projectId) return;
+    if (!canUseProjectPhotos(projectId)) {
+      setPhotoUploadError("Vorher-/Nachherbilder sind nur für OK-immocare-Projekte vorgesehen.");
+      return;
+    }
     setPhotoUploadError("");
     await loadProjectLogbookEntries(true, projectId);
     setPhotoGalleryProjectId(projectId);
@@ -2845,7 +3064,7 @@ function App() {
         }),
       });
 
-      const response = await fetch(endpoint("/api/project-time-entries"), {
+      const response = await apiFetch("/api/project-time-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2916,6 +3135,10 @@ function App() {
 
   async function uploadProjectPhoto(category: ProjectPhotoCategory, file?: File, projectId = session?.projectId ?? "") {
     if (!file || !projectId) return false;
+    if (!canUseProjectPhotos(projectId)) {
+      setPhotoUploadError("Vorher-/Nachherbilder sind nur für OK-immocare-Projekte vorgesehen.");
+      return false;
+    }
     const entries = await loadProjectLogbookEntries(true, projectId);
     const counts = getProjectPhotoCounts(projectId, entries);
     const currentCount = category === "Vorherbilder" ? counts.before : counts.after;
@@ -3069,7 +3292,7 @@ function App() {
     setIsTaskSaving(true);
     setTaskActionError("");
     try {
-      const response = await fetch(endpoint("/api/tasks"), {
+      const response = await apiFetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildTaskApiPayload(task, activeUser, status)),
@@ -3099,7 +3322,7 @@ function App() {
     setIsTaskSaving(true);
     setTaskActionError("");
     try {
-      const response = await fetch(endpoint(`/api/tasks/${selectedTask.id}/comments`), {
+      const response = await apiFetch(`/api/tasks/${selectedTask.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3144,7 +3367,7 @@ function App() {
     setIsTaskSaving(true);
     setTaskActionError("");
     try {
-      const response = await fetch(endpoint("/api/tasks"), {
+      const response = await apiFetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3193,7 +3416,7 @@ function App() {
     setIsTaskSaving(true);
     setTaskActionError("");
     try {
-      const apiResponse = await fetch(endpoint("/api/tasks/respond"), {
+      const apiResponse = await apiFetch("/api/tasks/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3228,7 +3451,7 @@ function App() {
     setTaskActionError("");
     setIsTaskSaving(true);
     try {
-      const response = await fetch(endpoint("/api/tasks"), {
+      const response = await apiFetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3294,7 +3517,7 @@ function App() {
     setAbsenceActionError("");
     setAbsenceActionMessage("");
     try {
-      const response = await fetch(endpoint("/api/absences"), {
+      const response = await apiFetch("/api/absences", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -3414,7 +3637,7 @@ function App() {
       setApprovalError("");
       try {
         const params = new URLSearchParams({ id: approvalPlanningEntry.id, actorUserId: activeUser.id });
-        const response = await fetch(endpoint(`/api/planning-entries?${params.toString()}`), {
+        const response = await apiFetch(`/api/planning-entries?${params.toString()}`, {
           method: "DELETE",
         });
         if (!response.ok) {
@@ -3455,7 +3678,7 @@ function App() {
     setIsApprovingPlanning(true);
     setApprovalError("");
     try {
-      const response = await fetch(endpoint("/api/planning-entries"), {
+      const response = await apiFetch("/api/planning-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3523,7 +3746,7 @@ function App() {
     setIsReschedulingPlanning(true);
     setRescheduleError("");
     try {
-      const response = await fetch(endpoint("/api/planning-entries"), {
+      const response = await apiFetch("/api/planning-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3675,7 +3898,7 @@ function App() {
                   : "Kein Mitarbeiter ausgewahlt"}
             </span>
           </div>
-          {session?.mode === "project" && (
+          {session?.mode === "project" && canUseProjectPhotos(session.projectId) && (
             <div className="photoPillRow" aria-label="Projektbilder">
               <PhotoCaptureButton
                 label="Vorher"
@@ -4020,6 +4243,8 @@ function App() {
                   const targetProgress = getPlanningEntryProgress(entry);
                   const showTargetProgress = isCurrentSession || targetProgress.percent > 0;
                   const visibleProgressPercent = Math.min(100, Math.round(targetProgress.percent));
+                  const showProjectPhotos = canUseProjectPhotos(entry.projectId);
+                  const projectPhotosLoading = showProjectPhotos && isProjectPhotoLoading(entry.projectId);
 
                   return (
                     <article
@@ -4074,7 +4299,10 @@ function App() {
                         <span className={`homePlanningStatus ${planningStatus}`}>
                           {planningStatusLabel(planningStatus)}
                         </span>
-                        {entry.projectId && (
+                        {showProjectPhotos && projectPhotosLoading && (
+                          <span className="homePhotoPill missing">Bilder laden...</span>
+                        )}
+                        {showProjectPhotos && !projectPhotosLoading && (
                           <>
                             <button
                               type="button"
@@ -5040,45 +5268,50 @@ function App() {
                     </strong>
                   </div>
                 </div>
-                <div className="projectPhotoGallery">
-                  {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
-                    const images = getProjectPhotoAttachments(selectedProject.id, category);
-                    return (
-                      <section key={category}>
-                        <div className="projectPhotoGalleryHeader">
-                          <div>
-                            <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
-                            <h3>{images.length} Bilder</h3>
+                {canUseProjectPhotos(selectedProject.id) && (
+                  <div className="projectPhotoGallery">
+                    {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
+                      const images = getProjectPhotoAttachments(selectedProject.id, category);
+                      const isLoading = isProjectPhotoLoading(selectedProject.id);
+                      return (
+                        <section key={category}>
+                          <div className="projectPhotoGalleryHeader">
+                            <div>
+                              <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
+                              <h3>{isLoading ? "Wird geladen..." : `${images.length} Bilder`}</h3>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void openProjectPhotoCamera(category, selectedProject.id)}
+                              disabled={uploadingPhotoCategory !== "" || isLoading || images.length >= 3}
+                            >
+                              Aufnehmen
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => void openProjectPhotoCamera(category, selectedProject.id)}
-                            disabled={uploadingPhotoCategory !== "" || images.length >= 3}
-                          >
-                            Aufnehmen
-                          </button>
-                        </div>
-                        {images.length ? (
-                          <div className="projectPhotoThumbGrid">
-                            {images.map((image) => (
-                              <a
-                                href={image.dataUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
-                              >
-                                <img src={image.dataUrl} alt={image.name} />
-                                <span>{image.name}</span>
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
-                        )}
-                      </section>
-                    );
-                  })}
-                </div>
+                          {isLoading ? (
+                            <div className="projectPhotoEmpty">Bilder werden geladen...</div>
+                          ) : images.length ? (
+                            <div className="projectPhotoThumbGrid">
+                              {images.map((image) => (
+                                <a
+                                  href={image.dataUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
+                                >
+                                  <img src={image.dataUrl} alt={image.name} />
+                                  <span>{image.name}</span>
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
+                          )}
+                        </section>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -5752,7 +5985,8 @@ function App() {
                   <p>{[contact.city, contact.email, contact.mobile || contact.phone].filter(Boolean).join(" | ")}</p>
                 </article>
               ))}
-              {filteredContacts.length === 0 && <Empty text="Keine Kontakte gefunden." />}
+              {!query.trim() && <Empty text="Bitte einen Suchbegriff eingeben." />}
+              {query.trim() && filteredContacts.length === 0 && <Empty text="Keine Kontakte gefunden." />}
             </div>
           </section>
         )}
@@ -5762,18 +5996,18 @@ function App() {
             <div className="panel wide">
               <div className="panelHeader">
                 <div>
-                  <p className="eyebrow">{data.users.length} Mitarbeiter</p>
+                  <p className="eyebrow">{activeTeamUsers.length} aktive Mitarbeiter</p>
                   <h2>Team</h2>
                 </div>
                 <Users size={20} />
               </div>
               <div className="teamGrid">
-                {data.users.map((user) => (
+                {activeTeamUsers.map((user) => (
                   <article className="teamCard" key={user.id}>
                     <strong>{user.name}</strong>
                     <span>{user.roleLabel || user.email}</span>
                     <p>{user.planningBoard || "OK solutions"} | {user.planningGroup || "Gruppe"}</p>
-                    <small>{user.isActive === false ? "Inaktiv" : "Aktiv"}</small>
+                    <small>Aktiv</small>
                   </article>
                 ))}
               </div>
@@ -5886,7 +6120,7 @@ function App() {
               <button type="button" className="secondaryDialogButton" onClick={() => setIsLogoutDialogOpen(false)}>
                 Nein
               </button>
-              <button type="button" className="dangerDialogButton" onClick={logout}>
+              <button type="button" className="dangerDialogButton" onClick={() => void logout()}>
                 Ja, abmelden
               </button>
             </footer>
@@ -6281,7 +6515,7 @@ function App() {
         </div>
       )}
 
-      {photoGalleryProjectId && (
+      {photoGalleryProjectId && canUseProjectPhotos(photoGalleryProjectId) && (
         <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Projektbilder ansehen">
           <section className="projectPhotoDialog">
             <header>
@@ -6295,22 +6529,25 @@ function App() {
             </header>
             {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
               const images = getProjectPhotoAttachments(photoGalleryProjectId, category);
+              const isLoading = isProjectPhotoLoading(photoGalleryProjectId);
               return (
                 <section key={category} className="projectPhotoDialogSection">
                   <div className="projectPhotoGalleryHeader">
                     <div>
                       <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
-                      <h3>{images.length} Bilder</h3>
+                      <h3>{isLoading ? "Wird geladen..." : `${images.length} Bilder`}</h3>
                     </div>
                     <button
                       type="button"
                       onClick={() => void openProjectPhotoCamera(category, photoGalleryProjectId)}
-                      disabled={uploadingPhotoCategory !== "" || images.length >= 3}
+                      disabled={uploadingPhotoCategory !== "" || isLoading || images.length >= 3}
                     >
                       Aufnehmen
                     </button>
                   </div>
-                  {images.length ? (
+                  {isLoading ? (
+                    <div className="projectPhotoEmpty">Bilder werden geladen...</div>
+                  ) : images.length ? (
                     <div className="projectPhotoThumbGrid">
                       {images.map((image) => (
                         <a

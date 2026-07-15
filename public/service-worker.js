@@ -1,4 +1,4 @@
-const CACHE_NAME = "workpilot360-pwa-v12";
+const CACHE_NAME = "workpilot360-pwa-v13";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -48,19 +48,16 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
+    event.respondWith(fetch(request));
     return;
   }
 
   event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "WORKPILOT_CLEAR_CACHES") return;
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))));
 });
 
 self.addEventListener("push", (event) => {
