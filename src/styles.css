@@ -4180,14 +4180,24 @@ button.projectCard:hover {
   gap: 8px;
 }
 
-.projectPhotoThumbGrid a {
+.projectPhotoThumbGrid button {
   min-width: 0;
   display: grid;
   gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #172033;
   font-size: 0.68rem;
   font-weight: 850;
+  font-family: inherit;
   text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projectPhotoThumbGrid button:active img {
+  transform: scale(0.98);
 }
 
 .projectPhotoThumbGrid img {
@@ -4298,6 +4308,61 @@ button.projectCard:hover {
   background: #ffffff;
   padding: 10px;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+}
+
+.imagePreviewOverlay {
+  z-index: 80;
+  background: rgba(2, 8, 23, 0.78);
+}
+
+.imagePreviewDialog {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  border-radius: 10px;
+  background: #07111f;
+  padding: 10px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
+.imagePreviewDialog header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #ffffff;
+}
+
+.imagePreviewDialog h2 {
+  overflow: hidden;
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imagePreviewDialog button {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 1.7rem;
+  font-weight: 900;
+}
+
+.imagePreviewDialog img {
+  width: 100%;
+  max-height: calc(100vh - 104px);
+  object-fit: contain;
+  border-radius: 8px;
+  background: #020817;
 }
 
 .personalHero {

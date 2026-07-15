@@ -921,6 +921,7 @@ function App() {
   } | null>(null);
   const [photoGalleryProjectId, setPhotoGalleryProjectId] = useState("");
   const [pendingProjectPhoto, setPendingProjectPhoto] = useState<PendingProjectPhoto | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{ dataUrl: string; name: string } | null>(null);
   const beforePhotoInputRef = useRef<HTMLInputElement>(null);
   const afterPhotoInputRef = useRef<HTMLInputElement>(null);
   const isProjectLogbookLoadingRef = useRef(false);
@@ -5295,15 +5296,14 @@ function App() {
                           {images.length ? (
                             <div className="projectPhotoThumbGrid">
                               {images.map((image) => (
-                                <a
-                                  href={image.dataUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
                                   key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
                                 >
                                   <img src={image.dataUrl} alt={image.name} />
                                   <span>{image.name}</span>
-                                </a>
+                                </button>
                               ))}
                             </div>
                           ) : isLoading ? (
@@ -6556,15 +6556,14 @@ function App() {
                   {images.length ? (
                     <div className="projectPhotoThumbGrid">
                       {images.map((image) => (
-                        <a
-                          href={image.dataUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
                           key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
                         >
                           <img src={image.dataUrl} alt={image.name} />
                           <span>{image.name}</span>
-                        </a>
+                        </button>
                       ))}
                     </div>
                   ) : isLoading ? (
@@ -6579,6 +6578,20 @@ function App() {
                 </section>
               );
             })}
+          </section>
+        </div>
+      )}
+
+      {previewPhoto && (
+        <div className="modalOverlay imagePreviewOverlay" role="dialog" aria-modal="true" aria-label="Projektbild ansehen">
+          <section className="imagePreviewDialog">
+            <header>
+              <h2>{previewPhoto.name}</h2>
+              <button type="button" onClick={() => setPreviewPhoto(null)} aria-label="Bild schließen">
+                ×
+              </button>
+            </header>
+            <img src={previewPhoto.dataUrl} alt={previewPhoto.name} />
           </section>
         </div>
       )}
