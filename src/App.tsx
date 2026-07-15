@@ -3020,8 +3020,8 @@ function App() {
       return;
     }
     setPhotoUploadError("");
-    await loadProjectLogbookEntries(true, projectId);
     setPhotoGalleryProjectId(projectId);
+    void loadProjectLogbookEntries(true, projectId);
   }
 
   function openPostProcessFinalInspection(entry: ProjectTimeEntry) {
