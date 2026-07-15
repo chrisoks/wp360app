@@ -5307,7 +5307,11 @@ function App() {
                               ))}
                             </div>
                           ) : isLoading ? (
-                            <div className="projectPhotoEmpty">Bilder werden geladen...</div>
+                            <div className="projectPhotoEmpty projectPhotoLoading">
+                              <span aria-hidden="true" />
+                              <strong>Bilder werden geladen</strong>
+                              <small>Die Projektfotos werden aus WorkPilot360 nachgeladen.</small>
+                            </div>
                           ) : (
                             <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
                           )}
@@ -6564,7 +6568,11 @@ function App() {
                       ))}
                     </div>
                   ) : isLoading ? (
-                    <div className="projectPhotoEmpty">Bilder werden geladen...</div>
+                    <div className="projectPhotoEmpty projectPhotoLoading">
+                      <span aria-hidden="true" />
+                      <strong>Bilder werden geladen</strong>
+                      <small>Die Projektfotos werden aus WorkPilot360 nachgeladen.</small>
+                    </div>
                   ) : (
                     <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
                   )}
