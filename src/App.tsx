@@ -3909,14 +3909,14 @@ function App() {
                 count={activeProjectPhotoCounts.before}
                 canCapture={uploadingPhotoCategory === "" && activeProjectPhotoCounts.before < 3}
                 onCapture={() => void openProjectPhotoCamera("Vorherbilder")}
-                onOpen={() => setPhotoGalleryProjectId(session.projectId)}
+                onOpen={() => void openProjectPhotoGallery(session.projectId)}
               />
               <PhotoCaptureButton
                 label="Nachher"
                 count={activeProjectPhotoCounts.after}
                 canCapture={uploadingPhotoCategory === "" && activeProjectPhotoCounts.after < 3}
                 onCapture={() => void openProjectPhotoCamera("Nachherbilder")}
-                onOpen={() => setPhotoGalleryProjectId(session.projectId)}
+                onOpen={() => void openProjectPhotoGallery(session.projectId)}
               />
             </div>
           )}
