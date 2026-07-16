@@ -4650,6 +4650,19 @@ button.projectCard:hover {
   gap: 10px;
 }
 
+.personalKpiNote {
+  grid-column: 1 / -1;
+  margin: -2px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid #d8e5ee;
+  border-radius: 8px;
+  background: #f7fbfd;
+  color: #52647a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .personalMasterData {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

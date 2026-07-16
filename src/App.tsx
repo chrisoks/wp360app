@@ -587,6 +587,16 @@ function isWeekend(date: Date) {
   return date.getDay() === 0 || date.getDay() === 6;
 }
 
+function decimalHours(milliseconds: number) {
+  return Math.round((milliseconds / 3_600_000) * 10) / 10;
+}
+
+function formatSignedDecimalHours(hours: number) {
+  const rounded = Math.round(hours * 10) / 10;
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`;
+}
+
 function minutesFromTime(value: string) {
   const [hours = 0, minutes = 0] = value.split(":").map(Number);
   return hours * 60 + minutes;
@@ -2105,15 +2115,61 @@ function App() {
   const personalAbsences = data.absences.filter(
     (absence) => absence.userId === activeUser?.id || absence.userName === activeUser?.name
   );
-  const approvedVacationDays = personalAbsences.filter(
-    (absence) => absence.type === "urlaub" && absence.status === "genehmigt"
-  ).length;
-  const remainingVacationDays = Math.max(0, 30 - approvedVacationDays);
+  const todayWorkedMs = todayTimeEntries.reduce(
+    (sum, entry) => sum + Math.max(0, entry.durationMs - entry.pauseMs),
+    0
+  );
+  const monthWorkedMs = currentMonthEntries.reduce(
+    (sum, entry) => sum + Math.max(0, entry.durationMs - entry.pauseMs),
+    0
+  );
+  const currentYear = new Date().getFullYear();
+  const todayKey = dateKey();
+  const currentYearPersonalAbsences = personalAbsences.filter((absence) =>
+    normalizeDateKeyValue(absence.date).startsWith(String(currentYear))
+  );
+  const approvedVacationDateKeys = Array.from(
+    new Set(
+      currentYearPersonalAbsences
+        .filter((absence) => normalizedText(absence.type) === "urlaub" && normalizedText(absence.status) === "genehmigt")
+        .map((absence) => normalizeDateKeyValue(absence.date))
+        .filter(Boolean)
+    )
+  );
+  const usedVacationDays = approvedVacationDateKeys.filter((absenceDate) => absenceDate <= todayKey).length;
+  const plannedVacationDays = approvedVacationDateKeys.filter((absenceDate) => absenceDate > todayKey).length;
+  const vacationEntitlement = 30;
+  const remainingVacationDays = Math.max(0, vacationEntitlement - approvedVacationDateKeys.length);
+  const getPersonalTargetHoursForDate = (date: Date) => {
+    if (isWeekend(date)) return 0;
+    const weekdayCapacity = activeUser?.weeklyCapacity?.[getDayKey(date)];
+    if (Number.isFinite(Number(weekdayCapacity))) return Number(weekdayCapacity);
+    return activeUser?.dailyWorkHours ?? 8;
+  };
+  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12);
+  const currentMonthEnd = new Date();
+  const currentMonthTargetDays: Date[] = [];
+  for (
+    let cursor = new Date(currentMonthStart);
+    cursor.getTime() <= currentMonthEnd.getTime();
+    cursor.setDate(cursor.getDate() + 1)
+  ) {
+    currentMonthTargetDays.push(new Date(cursor));
+  }
+  const monthTargetHours = currentMonthTargetDays.reduce(
+    (sum, date) => sum + getPersonalTargetHoursForDate(date),
+    0
+  );
+  const monthBalanceHours = decimalHours(monthWorkedMs) - monthTargetHours;
   const upcomingTeamAbsences = data.absences
-    .filter((absence) => normalizeDateKeyValue(absence.date) >= dateKey())
+    .filter((absence) => normalizeDateKeyValue(absence.date) >= todayKey)
     .sort((a, b) => normalizeDateKeyValue(a.date).localeCompare(normalizeDateKeyValue(b.date)));
   const colleagueVacationAbsences = upcomingTeamAbsences.filter(
-    (absence) => absence.type === "urlaub" && absence.userId !== activeUser?.id && absence.userName !== activeUser?.name
+    (absence) =>
+      normalizedText(absence.type) === "urlaub" &&
+      normalizedText(absence.status) === "genehmigt" &&
+      absence.userId !== activeUser?.id &&
+      absence.userName !== activeUser?.name
   );
   const representativeOptions = data.users.filter(
     (user) => user.id !== activeUser?.id && user.isActive !== false
@@ -2126,14 +2182,6 @@ function App() {
     });
     return [...byId.values()].sort((first, second) => first.name.localeCompare(second.name, "de"));
   }, [data.users]);
-  const todayWorkedMs = todayTimeEntries.reduce(
-    (sum, entry) => sum + Math.max(0, entry.durationMs - entry.pauseMs),
-    0
-  );
-  const monthWorkedMs = currentMonthEntries.reduce(
-    (sum, entry) => sum + Math.max(0, entry.durationMs - entry.pauseMs),
-    0
-  );
   const sessionElapsedMs = session
     ? session.accumulatedMs +
       (session.pauseStartedAt
@@ -6088,10 +6136,20 @@ function App() {
             </div>
 
             <div className="personalKpis">
-              <Metric icon={CalendarDays} label="Resturlaub" value={remainingVacationDays} tone="blue" compact />
-              <Metric icon={Clock3} label="Zeitkonto Std." value={Number(((monthWorkedMs / 3_600_000) - 40).toFixed(1))} tone="amber" compact />
-              <Metric icon={ListChecks} label="Meine Aufgaben" value={openPersonalTasks.length} tone="blue" compact />
-              <Metric icon={CalendarDays} label="Abwesenheiten" value={personalAbsences.length} tone="green" compact />
+              <Metric icon={CalendarDays} label="Resturlaub" value={remainingVacationDays} suffix="T" tone="blue" compact />
+              <Metric
+                icon={Clock3}
+                label="Monatssaldo"
+                value={formatSignedDecimalHours(monthBalanceHours)}
+                tone={monthBalanceHours < 0 ? "amber" : "green"}
+                compact
+              />
+              <Metric icon={ListChecks} label="Offene Aufgaben" value={openPersonalTasks.length} tone="blue" compact />
+              <Metric icon={CalendarDays} label="Meine Anträge" value={personalAbsences.length} tone="green" compact />
+            </div>
+            <div className="personalKpiNote">
+              Urlaub {currentYear}: {usedVacationDays} genutzt · {plannedVacationDays} geplant · {vacationEntitlement} Anspruch.
+              Monatssaldo: Ist {decimalHours(monthWorkedMs).toLocaleString("de-DE")} h gegen Soll {monthTargetHours.toLocaleString("de-DE")} h bis heute.
             </div>
 
             <div className="panel personalDataPanel">
@@ -6112,7 +6170,6 @@ function App() {
                 <Detail label="Adresse" value={[activeUser?.street, activeUser?.postalCode, activeUser?.city].filter(Boolean).join(", ") || "-"} />
                 <Detail label="Planungsgruppe" value={`${activeUser?.planningBoard || "-"} | ${activeUser?.planningGroup || "-"}`} />
                 <Detail label="Arbeitszeit" value={`${activeUser?.planningStartTime || "08:00"} - ${activeUser?.planningEndTime || "17:00"}`} />
-                <Detail label="Freigegebene Boards" value={visiblePlanningGroups.map((group) => `${group.board} | ${group.groupName}`).join(", ") || "-"} />
               </div>
             </div>
 
@@ -6239,18 +6296,18 @@ function App() {
               <div className="panelHeader">
                 <div>
                   <p className="eyebrow">Nächste Schritte</p>
-                  <h2>Aufgaben & Übergaben</h2>
+                  <h2>Übergaben & offene Aufgaben</h2>
                 </div>
                 <ListChecks size={20} />
               </div>
               <div className="stackList compact">
-                {personalTasks.slice(0, 6).map((task) => (
+                {openPersonalTasks.slice(0, 6).map((task) => (
                   <article className="listItem" key={task.id}>
                     <strong>{task.titel}</strong>
                     <span>{task.kunde || task.status} | {formatDateTime(task.faelligkeit)}</span>
                   </article>
                 ))}
-                {personalTasks.length === 0 && <Empty text="Keine eigenen Aufgaben vorhanden." />}
+                {openPersonalTasks.length === 0 && <Empty text="Keine offenen Aufgaben vorhanden." />}
               </div>
             </div>
           </section>
@@ -7090,7 +7147,7 @@ function Metric({
 }: {
   icon: typeof Home;
   label: string;
-  value: number;
+  value: number | string;
   suffix?: string;
   tone: string;
   compact?: boolean;
