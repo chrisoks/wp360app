@@ -2069,6 +2069,19 @@ function App() {
   const photoGalleryProject = data.projects.find((project) => project.id === photoGalleryProjectId);
   const reschedulePlanningEntry = data.planning.find((entry) => entry.id === reschedulePlanningEntryId) ?? null;
   const approvalPlanningEntry = data.planning.find((entry) => entry.id === approvalPlanningEntryId) ?? null;
+  const hasOpenModal = Boolean(
+    selectedTask ||
+      isStartDialogOpen ||
+      isLogoutDialogOpen ||
+      completionAction ||
+      postProcessEntryId ||
+      pendingProjectPhoto ||
+      photoGalleryProjectId ||
+      previewPhoto ||
+      isNotificationsOpen ||
+      reschedulePlanningEntryId ||
+      approvalPlanningEntryId
+  );
   const approvalConflicts = approvalPlanningEntry
     ? data.planning.filter((entry) => {
         if (entry.id === approvalPlanningEntry.id || entry.deletedAt) return false;
@@ -2077,6 +2090,35 @@ function App() {
         return timeRangesOverlap(approvalStartTime, approvalEndTime, entry.startTime, entry.endTime);
       })
     : [];
+
+  useEffect(() => {
+    if (!hasOpenModal) return undefined;
+
+    const scrollY = window.scrollY;
+    const { style } = document.body;
+    const previous = {
+      position: style.position,
+      top: style.top,
+      width: style.width,
+      overflow: style.overflow,
+      touchAction: style.touchAction,
+    };
+
+    style.position = "fixed";
+    style.top = `-${scrollY}px`;
+    style.width = "100%";
+    style.overflow = "hidden";
+    style.touchAction = "none";
+
+    return () => {
+      style.position = previous.position;
+      style.top = previous.top;
+      style.width = previous.width;
+      style.overflow = previous.overflow;
+      style.touchAction = previous.touchAction;
+      window.scrollTo(0, scrollY);
+    };
+  }, [hasOpenModal]);
   const activeProjectPhotoCounts = useMemo(() => {
     if (!session || session.mode !== "project" || !canUseProjectPhotos(session.projectId)) return { before: 0, after: 0 };
     return getProjectPhotoCounts(session.projectId);

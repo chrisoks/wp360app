@@ -3282,6 +3282,9 @@ button.planningBar:hover {
   width: min(620px, calc(100vw - 22px));
   max-height: min(820px, calc(100vh - 22px));
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   border: 1px solid #cfdde8;
   border-radius: 8px;
   background: #f7fafc;
@@ -4728,6 +4731,9 @@ button.projectCard:hover {
   place-items: center;
   padding: 18px;
   background: rgba(15, 23, 42, 0.42);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .completionDialog {
