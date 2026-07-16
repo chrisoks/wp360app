@@ -810,6 +810,89 @@ function taskPriorityClass(task: Task) {
   return "neutral";
 }
 
+type StructuredTaskDescription = {
+  title: string;
+  tone: "warning" | "neutral";
+  fields: Array<{ label: string; value: string }>;
+};
+
+function parseStructuredTaskDescription(description?: string): StructuredTaskDescription | null {
+  const text = description?.trim();
+  if (!text) return null;
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const interruptedSource = lines.some((line) => normalizedText(line) === "quelle: unterbrochene arbeit");
+  if (interruptedSource) {
+    const labels = new Map<string, string>([
+      ["projekt", "Projekt"],
+      ["mitarbeiter", "Mitarbeiter"],
+      ["datum", "Zeitpunkt"],
+      ["kommentar", "Grund / Kommentar"],
+      ["stempelung", "Stempelung"],
+    ]);
+    const fields = lines
+      .map((line) => {
+        const separatorIndex = line.indexOf(":");
+        if (separatorIndex < 0) return null;
+        const rawKey = line.slice(0, separatorIndex).trim();
+        const key = normalizedText(rawKey);
+        const label = labels.get(key);
+        const value = line.slice(separatorIndex + 1).trim();
+        return label && value ? { label, value } : null;
+      })
+      .filter((field): field is { label: string; value: string } => Boolean(field));
+
+    return fields.length
+      ? {
+          title: "Unterbrochene Arbeit",
+          tone: "warning",
+          fields,
+        }
+      : null;
+  }
+
+  const handoverMarker = "Übergabe-Aufgabe aus Abwesenheitsantrag";
+  const handoverLine = lines.find((line) => line.includes(handoverMarker));
+  if (handoverLine) {
+    const details = lines.filter((line) => line !== handoverLine).join("\n").trim();
+    return {
+      title: "Abwesenheits-Übergabe",
+      tone: "neutral",
+      fields: [
+        ...(details ? [{ label: "Aufgabe", value: details }] : []),
+        { label: "Hinweis", value: handoverLine.replace(/\.$/, "") },
+      ],
+    };
+  }
+
+  return null;
+}
+
+function TaskDescriptionContent({ description }: { description?: string }) {
+  const structured = parseStructuredTaskDescription(description);
+  if (!structured) {
+    return <p>{description || "Keine Beschreibung hinterlegt."}</p>;
+  }
+
+  return (
+    <div className={`taskStructuredDescription ${structured.tone}`}>
+      <strong>{structured.title}</strong>
+      <dl>
+        {structured.fields.map((field) => (
+          <Fragment key={`${field.label}-${field.value}`}>
+            <dt>{field.label}</dt>
+            <dd>{field.value}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 function statusClass(status?: string) {
   const text = (status ?? "").toLowerCase();
   if (text.includes("erledigt") || text.includes("genehmigt") || text.includes("abgeschlossen")) {
@@ -5190,7 +5273,7 @@ function App() {
               </div>
               <div className="taskReadonlyField">
                 <span>Beschreibung</span>
-                <p>{selectedTask.beschreibung || "Keine Beschreibung hinterlegt."}</p>
+                <TaskDescriptionContent description={selectedTask.beschreibung} />
               </div>
               {taskActionError ? <div className="taskActionError">{taskActionError}</div> : null}
               <div className="taskDetailTabs" role="tablist" aria-label="Aufgabendetails">
