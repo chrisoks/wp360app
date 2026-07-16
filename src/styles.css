@@ -64,6 +64,96 @@ button {
     #eef2f6;
 }
 
+.startupShell {
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: calc(22px + env(safe-area-inset-top, 0px)) 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(circle at 50% 18%, rgba(20, 184, 166, 0.13), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(238, 242, 246, 0.96)),
+    #eef2f6;
+}
+
+.startupPanel {
+  width: min(360px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  padding: 28px 22px;
+  border: 1px solid #d9e6f0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.13);
+  text-align: center;
+}
+
+.startupBrand {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.startupBrand strong {
+  color: #07142f;
+  font-size: clamp(2rem, 11vw, 3rem);
+  font-weight: 950;
+  line-height: 0.94;
+}
+
+.startupBrand span {
+  color: #2563eb;
+}
+
+.startupBrand small {
+  color: #0f6675;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.startupLoader {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ecfeff;
+  border: 1px solid #bdeff0;
+}
+
+.startupLoader span {
+  width: 30px;
+  height: 30px;
+  border: 4px solid #d7eef3;
+  border-top-color: #0f6675;
+  border-radius: 999px;
+  animation: startupSpin 0.8s linear infinite;
+}
+
+.startupPanel h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+.startupPanel p {
+  max-width: 280px;
+  margin: 8px 0 0;
+  color: #607086;
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+@keyframes startupSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .loginPanel {
   width: min(420px, 100%);
   display: grid;

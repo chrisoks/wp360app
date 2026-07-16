@@ -4163,6 +4163,37 @@ function App() {
     );
   }
 
+  const showStartupScreen =
+    !error &&
+    (state === "idle" ||
+      (state === "loading" &&
+        data.users.length === 0 &&
+        data.projects.length === 0 &&
+        data.tasks.length === 0 &&
+        data.planning.length === 0));
+
+  if (showStartupScreen) {
+    return (
+      <main className="startupShell" aria-live="polite" aria-busy="true">
+        <section className="startupPanel">
+          <div className="startupBrand">
+            <strong>
+              WorkPilot<span>360</span>
+            </strong>
+            <small>PWA</small>
+          </div>
+          <div className="startupLoader" aria-hidden="true">
+            <span />
+          </div>
+          <div>
+            <h1>App wird geladen</h1>
+            <p>Bitte kurz warten. Die Verbindung zu WorkPilot360 wird geprüft.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="appShell">
       <aside className="sidebar">
