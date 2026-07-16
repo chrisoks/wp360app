@@ -4325,6 +4325,20 @@ button.projectCard:hover {
   opacity: 0.58;
 }
 
+.projectPhotoHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.projectPhotoHeaderActions button:first-child:not(:only-child) {
+  border: 1px solid #d5e3ed;
+  background: #ffffff;
+  color: #10596b;
+  box-shadow: none;
+}
+
 .projectPhotoThumbGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4387,6 +4401,29 @@ button.projectCard:hover {
 .projectPhotoDeleteButton:disabled {
   cursor: default;
   opacity: 0.62;
+}
+
+.projectPhotoRefreshNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #075e54;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.projectPhotoRefreshNotice span {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(15, 118, 110, 0.2);
+  border-top-color: #0f766e;
+  border-radius: 999px;
+  animation: photoLoadingSpin 0.9s linear infinite;
 }
 
 .projectPhotoEmpty {
@@ -6144,6 +6181,11 @@ button.projectCard:hover {
 
   .projectPhotoGalleryHeader {
     gap: 8px;
+  }
+
+  .projectPhotoHeaderActions {
+    width: auto;
+    flex: 0 0 auto;
   }
 
   .projectPhotoGalleryHeader button {

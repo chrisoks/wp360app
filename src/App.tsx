@@ -2555,6 +2555,19 @@ function App() {
     };
   }
 
+  function getProjectPhotoCategoryCount(
+    projectId: string,
+    category: "Vorherbilder" | "Nachherbilder",
+    entries = data.projectLogbookEntries
+  ) {
+    if (!canUseProjectPhotos(projectId)) return 0;
+    const projectMonth = getProjectLogbookMonth(projectId);
+    return entries
+      .filter((entry) => entry.projectId === projectId && entry.title === `Bilder: ${category}`)
+      .filter((entry) => entryMatchesProjectMonth(entry, projectMonth))
+      .reduce((sum, entry) => sum + entry.attachments.filter((attachment) => attachment.type === "Bild").length, 0);
+  }
+
   function getProjectPhotoAttachments(
     projectId: string,
     category: "Vorherbilder" | "Nachherbilder"
@@ -3154,6 +3167,12 @@ function App() {
     void loadProjectLogbookEntries(true, projectId);
   }
 
+  function refreshProjectPhotoGallery(projectId: string) {
+    if (!projectId || isProjectPhotoDetailLoading(projectId)) return;
+    setPhotoUploadError("");
+    void loadProjectLogbookEntries(true, projectId);
+  }
+
   function openPostProcessFinalInspection(entry: ProjectTimeEntry) {
     resetCompletionState();
     setPostProcessEntryId(entry.id);
@@ -3362,6 +3381,97 @@ function App() {
     } finally {
       setDeletingProjectPhotoKey("");
     }
+  }
+
+  function renderProjectPhotoSection(projectId: string, category: ProjectPhotoCategory) {
+    const images = getProjectPhotoAttachments(projectId, category);
+    const totalCount = getProjectPhotoCategoryCount(projectId, category);
+    const isLoading = isProjectPhotoDetailLoading(projectId);
+    const hasPendingPreviewData = totalCount > 0 && images.length === 0;
+    const headline = images.length
+      ? `${images.length} von ${totalCount || images.length} Bilder`
+      : isLoading || hasPendingPreviewData
+        ? `${totalCount || ""} Bilder werden geladen`.trim()
+        : "0 Bilder";
+    const canRefresh = !isLoading && hasPendingPreviewData;
+
+    return (
+      <section key={category} className="projectPhotoDialogSection">
+        <div className="projectPhotoGalleryHeader">
+          <div>
+            <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
+            <h3>{headline}</h3>
+            <small className="projectPhotoRecommendation">
+              {totalCount > 3 ? `${totalCount} vorhanden, 3 empfohlen` : "3 Bilder empfohlen"}
+            </small>
+          </div>
+          <div className="projectPhotoHeaderActions">
+            {canRefresh && (
+              <button type="button" onClick={() => refreshProjectPhotoGallery(projectId)}>
+                Aktualisieren
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void openProjectPhotoCamera(category, projectId)}
+              disabled={uploadingPhotoCategory !== "" || isLoading}
+            >
+              Aufnehmen
+            </button>
+          </div>
+        </div>
+        {images.length ? (
+          <>
+            {isLoading && (
+              <div className="projectPhotoRefreshNotice">
+                <span aria-hidden="true" />
+                Fotos werden aktualisiert...
+              </div>
+            )}
+            <div className="projectPhotoThumbGrid">
+              {images.map((image) => {
+                const imageKey = `${image.entryId}-${image.name}-${image.attachmentIndex}`;
+                return (
+                  <div className="projectPhotoThumbItem" key={imageKey}>
+                    <button
+                      type="button"
+                      className="projectPhotoPreviewButton"
+                      onClick={() => {
+                        if (!image.dataUrl) return;
+                        setPreviewPhoto({ dataUrl: image.dataUrl, name: image.name });
+                      }}
+                    >
+                      <img src={image.dataUrl} alt={image.name} />
+                      <span>{image.name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="projectPhotoDeleteButton"
+                      onClick={() => void deleteProjectPhoto(image)}
+                      disabled={deletingProjectPhotoKey === imageKey || uploadingPhotoCategory !== ""}
+                    >
+                      {deletingProjectPhotoKey === imageKey ? "Löscht..." : "Löschen"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : isLoading || hasPendingPreviewData ? (
+          <div className="projectPhotoEmpty projectPhotoLoading">
+            <span aria-hidden="true" />
+            <strong>{hasPendingPreviewData ? "Vorschau wird vorbereitet" : "Bilder werden geladen"}</strong>
+            <small>
+              {hasPendingPreviewData
+                ? `${totalCount} Bild${totalCount === 1 ? "" : "er"} sind im Projekt vorhanden. Die Vorschau wird aus WorkPilot360 nachgeladen.`
+                : "Die Projektfotos werden aus WorkPilot360 nachgeladen."}
+            </small>
+          </div>
+        ) : (
+          <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
+        )}
+      </section>
+    );
   }
 
   function validateCompletionDialog() {
@@ -5478,63 +5588,9 @@ function App() {
                 </div>
                 {canUseProjectPhotos(selectedProject.id) && (
                   <div className="projectPhotoGallery">
-                    {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
-                      const images = getProjectPhotoAttachments(selectedProject.id, category);
-                      const isLoading = isProjectPhotoDetailLoading(selectedProject.id);
-                      return (
-                        <section key={category}>
-                          <div className="projectPhotoGalleryHeader">
-                            <div>
-                              <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
-                              <h3>{images.length ? `${images.length} Bilder` : isLoading ? "Wird geladen..." : "0 Bilder"}</h3>
-                              <small className="projectPhotoRecommendation">3 Bilder empfohlen</small>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => void openProjectPhotoCamera(category, selectedProject.id)}
-                              disabled={uploadingPhotoCategory !== "" || isLoading}
-                            >
-                              Aufnehmen
-                            </button>
-                          </div>
-                          {images.length ? (
-                            <div className="projectPhotoThumbGrid">
-                              {images.map((image) => {
-                                const imageKey = `${image.entryId}-${image.name}-${image.attachmentIndex}`;
-                                return (
-                                  <div className="projectPhotoThumbItem" key={imageKey}>
-                                    <button
-                                      type="button"
-                                      className="projectPhotoPreviewButton"
-                                      onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
-                                    >
-                                      <img src={image.dataUrl} alt={image.name} />
-                                      <span>{image.name}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="projectPhotoDeleteButton"
-                                      onClick={() => void deleteProjectPhoto(image)}
-                                      disabled={deletingProjectPhotoKey === imageKey || uploadingPhotoCategory !== ""}
-                                    >
-                                      {deletingProjectPhotoKey === imageKey ? "Löscht..." : "Löschen"}
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : isLoading ? (
-                            <div className="projectPhotoEmpty projectPhotoLoading">
-                              <span aria-hidden="true" />
-                              <strong>Bilder werden geladen</strong>
-                              <small>Die Projektfotos werden aus WorkPilot360 nachgeladen.</small>
-                            </div>
-                          ) : (
-                            <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
-                          )}
-                        </section>
-                      );
-                    })}
+                    {(["Vorherbilder", "Nachherbilder"] as const).map((category) =>
+                      renderProjectPhotoSection(selectedProject.id, category)
+                    )}
                   </div>
                 )}
               </div>
@@ -6752,63 +6808,9 @@ function App() {
                 ×
               </button>
             </header>
-            {(["Vorherbilder", "Nachherbilder"] as const).map((category) => {
-              const images = getProjectPhotoAttachments(photoGalleryProjectId, category);
-              const isLoading = isProjectPhotoDetailLoading(photoGalleryProjectId);
-              return (
-                <section key={category} className="projectPhotoDialogSection">
-                  <div className="projectPhotoGalleryHeader">
-                    <div>
-                      <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
-                      <h3>{images.length ? `${images.length} Bilder` : isLoading ? "Wird geladen..." : "0 Bilder"}</h3>
-                      <small className="projectPhotoRecommendation">3 Bilder empfohlen</small>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void openProjectPhotoCamera(category, photoGalleryProjectId)}
-                      disabled={uploadingPhotoCategory !== "" || isLoading}
-                    >
-                      Aufnehmen
-                    </button>
-                  </div>
-                  {images.length ? (
-                    <div className="projectPhotoThumbGrid">
-                      {images.map((image) => {
-                        const imageKey = `${image.entryId}-${image.name}-${image.attachmentIndex}`;
-                        return (
-                          <div className="projectPhotoThumbItem" key={imageKey}>
-                            <button
-                              type="button"
-                              className="projectPhotoPreviewButton"
-                              onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
-                            >
-                              <img src={image.dataUrl} alt={image.name} />
-                              <span>{image.name}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="projectPhotoDeleteButton"
-                              onClick={() => void deleteProjectPhoto(image)}
-                              disabled={deletingProjectPhotoKey === imageKey || uploadingPhotoCategory !== ""}
-                            >
-                              {deletingProjectPhotoKey === imageKey ? "Löscht..." : "Löschen"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : isLoading ? (
-                    <div className="projectPhotoEmpty projectPhotoLoading">
-                      <span aria-hidden="true" />
-                      <strong>Bilder werden geladen</strong>
-                      <small>Die Projektfotos werden aus WorkPilot360 nachgeladen.</small>
-                    </div>
-                  ) : (
-                    <div className="projectPhotoEmpty">Noch keine Bilder vorhanden.</div>
-                  )}
-                </section>
-              );
-            })}
+            {(["Vorherbilder", "Nachherbilder"] as const).map((category) =>
+              renderProjectPhotoSection(photoGalleryProjectId, category)
+            )}
           </section>
         </div>
       )}
