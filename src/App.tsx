@@ -293,6 +293,12 @@ type PendingProjectPhoto = {
   projectId: string;
 };
 
+type ProjectPhotoAttachment = LogbookAttachment & {
+  entryId: string;
+  attachmentIndex: number;
+  date?: string;
+};
+
 type Notification = {
   id: string;
   subject: string;
@@ -922,6 +928,7 @@ function App() {
   const [photoGalleryProjectId, setPhotoGalleryProjectId] = useState("");
   const [pendingProjectPhoto, setPendingProjectPhoto] = useState<PendingProjectPhoto | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [deletingProjectPhotoKey, setDeletingProjectPhotoKey] = useState("");
   const beforePhotoInputRef = useRef<HTMLInputElement>(null);
   const afterPhotoInputRef = useRef<HTMLInputElement>(null);
   const isProjectLogbookLoadingRef = useRef(false);
@@ -2423,7 +2430,10 @@ function App() {
     };
   }
 
-  function getProjectPhotoAttachments(projectId: string, category: "Vorherbilder" | "Nachherbilder") {
+  function getProjectPhotoAttachments(
+    projectId: string,
+    category: "Vorherbilder" | "Nachherbilder"
+  ): ProjectPhotoAttachment[] {
     if (!canUseProjectPhotos(projectId)) return [];
     const projectMonth = getProjectLogbookMonth(projectId);
     return data.projectLogbookEntries
@@ -3000,13 +3010,7 @@ function App() {
       setPhotoUploadError("Vorher-/Nachherbilder sind nur für OK-immocare-Projekte vorgesehen.");
       return;
     }
-    const entries = await loadProjectLogbookEntries(true, projectId);
-    const counts = getProjectPhotoCounts(projectId, entries);
-    const count = category === "Vorherbilder" ? counts.before : counts.after;
-    if (count >= 3) {
-      setPhotoUploadError(`${category} sind bereits vollständig: maximal 3 Bilder.`);
-      return;
-    }
+    void loadProjectLogbookEntries(true, projectId).catch(() => undefined);
     setPhotoUploadError("");
     setPhotoGalleryProjectId("");
     setPhotoCaptureTarget({ category, projectId });
@@ -3147,10 +3151,6 @@ function App() {
     const entries = await loadProjectLogbookEntries(true, projectId);
     const counts = getProjectPhotoCounts(projectId, entries);
     const currentCount = category === "Vorherbilder" ? counts.before : counts.after;
-    if (currentCount >= 3) {
-      setPhotoUploadError(`${category} sind bereits vollständig: maximal 3 Bilder.`);
-      return false;
-    }
 
     setUploadingPhotoCategory(category);
     setPhotoUploadError("");
@@ -3189,6 +3189,53 @@ function App() {
       return false;
     } finally {
       setUploadingPhotoCategory("");
+    }
+  }
+
+  async function deleteProjectPhoto(image: ProjectPhotoAttachment) {
+    if (!activeUser) {
+      setPhotoUploadError("Bitte erst einloggen.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Bild "${image.name}" wirklich löschen? Die Löschung wird im Projektlogbuch dokumentiert.`
+    );
+    if (!confirmed) return;
+
+    const deleteKey = `${image.entryId}-${image.name}-${image.attachmentIndex}`;
+    setDeletingProjectPhotoKey(deleteKey);
+    setPhotoUploadError("");
+    try {
+      const result = await fetchJson<{ entry: ProjectLogbookEntry; history?: ProjectLogbookEntry }>(
+        "/api/project-logbook-entries",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "delete",
+            entryId: image.entryId,
+            attachmentName: image.name,
+            attachmentIndex: image.attachmentIndex,
+            actorId: activeUser.id,
+          }),
+        }
+      );
+      const incoming = [result.entry, result.history].filter(Boolean) as ProjectLogbookEntry[];
+      setData((current) => ({
+        ...current,
+        projectLogbookEntries: mergeProjectLogbookEntries(current.projectLogbookEntries, incoming),
+      }));
+      if (previewPhoto?.name === image.name && previewPhoto.dataUrl === image.dataUrl) {
+        setPreviewPhoto(null);
+      }
+    } catch (deleteError) {
+      if (isApiStatus(deleteError, 401)) {
+        handleAuthExpired();
+      } else {
+        setPhotoUploadError(deleteError instanceof Error ? deleteError.message : "Bild konnte nicht gelöscht werden.");
+      }
+    } finally {
+      setDeletingProjectPhotoKey("");
     }
   }
 
@@ -3908,14 +3955,14 @@ function App() {
               <PhotoCaptureButton
                 label="Vorher"
                 count={activeProjectPhotoCounts.before}
-                canCapture={uploadingPhotoCategory === "" && activeProjectPhotoCounts.before < 3}
+                canCapture={uploadingPhotoCategory === ""}
                 onCapture={() => void openProjectPhotoCamera("Vorherbilder")}
                 onOpen={() => void openProjectPhotoGallery(session.projectId)}
               />
               <PhotoCaptureButton
                 label="Nachher"
                 count={activeProjectPhotoCounts.after}
-                canCapture={uploadingPhotoCategory === "" && activeProjectPhotoCounts.after < 3}
+                canCapture={uploadingPhotoCategory === ""}
                 onCapture={() => void openProjectPhotoCamera("Nachherbilder")}
                 onOpen={() => void openProjectPhotoGallery(session.projectId)}
               />
@@ -4313,7 +4360,7 @@ function App() {
                               type="button"
                               className={`homePhotoPill ${photoCounts.before > 0 ? "ok" : "missing"}`}
                               onClick={() => void openProjectPhotoCamera("Vorherbilder", entry.projectId)}
-                              disabled={uploadingPhotoCategory !== "" || photoCounts.before >= 3}
+                              disabled={uploadingPhotoCategory !== ""}
                               title="Vorherbild aufnehmen"
                             >
                               V-Bilder {photoCounts.before}
@@ -4322,7 +4369,7 @@ function App() {
                               type="button"
                               className={`homePhotoPill ${photoCounts.after > 0 ? "ok" : "missing"}`}
                               onClick={() => void openProjectPhotoCamera("Nachherbilder", entry.projectId)}
-                              disabled={uploadingPhotoCategory !== "" || photoCounts.after >= 3}
+                              disabled={uploadingPhotoCategory !== ""}
                               title="Nachherbild aufnehmen"
                             >
                               N-Bilder {photoCounts.after}
@@ -5284,27 +5331,41 @@ function App() {
                             <div>
                               <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
                               <h3>{images.length ? `${images.length} Bilder` : isLoading ? "Wird geladen..." : "0 Bilder"}</h3>
+                              <small className="projectPhotoRecommendation">3 Bilder empfohlen</small>
                             </div>
                             <button
                               type="button"
                               onClick={() => void openProjectPhotoCamera(category, selectedProject.id)}
-                              disabled={uploadingPhotoCategory !== "" || isLoading || images.length >= 3}
+                              disabled={uploadingPhotoCategory !== "" || isLoading}
                             >
                               Aufnehmen
                             </button>
                           </div>
                           {images.length ? (
                             <div className="projectPhotoThumbGrid">
-                              {images.map((image) => (
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
-                                  key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
-                                >
-                                  <img src={image.dataUrl} alt={image.name} />
-                                  <span>{image.name}</span>
-                                </button>
-                              ))}
+                              {images.map((image) => {
+                                const imageKey = `${image.entryId}-${image.name}-${image.attachmentIndex}`;
+                                return (
+                                  <div className="projectPhotoThumbItem" key={imageKey}>
+                                    <button
+                                      type="button"
+                                      className="projectPhotoPreviewButton"
+                                      onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
+                                    >
+                                      <img src={image.dataUrl} alt={image.name} />
+                                      <span>{image.name}</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="projectPhotoDeleteButton"
+                                      onClick={() => void deleteProjectPhoto(image)}
+                                      disabled={deletingProjectPhotoKey === imageKey || uploadingPhotoCategory !== ""}
+                                    >
+                                      {deletingProjectPhotoKey === imageKey ? "Löscht..." : "Löschen"}
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           ) : isLoading ? (
                             <div className="projectPhotoEmpty projectPhotoLoading">
@@ -6544,27 +6605,41 @@ function App() {
                     <div>
                       <p className="eyebrow">{category === "Vorherbilder" ? "Vorher" : "Nachher"}</p>
                       <h3>{images.length ? `${images.length} Bilder` : isLoading ? "Wird geladen..." : "0 Bilder"}</h3>
+                      <small className="projectPhotoRecommendation">3 Bilder empfohlen</small>
                     </div>
                     <button
                       type="button"
                       onClick={() => void openProjectPhotoCamera(category, photoGalleryProjectId)}
-                      disabled={uploadingPhotoCategory !== "" || isLoading || images.length >= 3}
+                      disabled={uploadingPhotoCategory !== "" || isLoading}
                     >
                       Aufnehmen
                     </button>
                   </div>
                   {images.length ? (
                     <div className="projectPhotoThumbGrid">
-                      {images.map((image) => (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
-                          key={`${image.entryId}-${image.name}-${image.attachmentIndex}`}
-                        >
-                          <img src={image.dataUrl} alt={image.name} />
-                          <span>{image.name}</span>
-                        </button>
-                      ))}
+                      {images.map((image) => {
+                        const imageKey = `${image.entryId}-${image.name}-${image.attachmentIndex}`;
+                        return (
+                          <div className="projectPhotoThumbItem" key={imageKey}>
+                            <button
+                              type="button"
+                              className="projectPhotoPreviewButton"
+                              onClick={() => setPreviewPhoto({ dataUrl: image.dataUrl || "", name: image.name })}
+                            >
+                              <img src={image.dataUrl} alt={image.name} />
+                              <span>{image.name}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="projectPhotoDeleteButton"
+                              onClick={() => void deleteProjectPhoto(image)}
+                              disabled={deletingProjectPhotoKey === imageKey || uploadingPhotoCategory !== ""}
+                            >
+                              {deletingProjectPhotoKey === imageKey ? "Löscht..." : "Löschen"}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : isLoading ? (
                     <div className="projectPhotoEmpty projectPhotoLoading">
@@ -6889,12 +6964,12 @@ function PhotoCaptureButton({
   onCapture: () => void;
   onOpen: () => void;
 }) {
-  const cappedCount = Math.min(3, count);
+  const displayCount = Math.max(0, count);
   return (
-    <div className={`photoCaptureButton ${cappedCount > 0 ? "hasPhotos" : "missingPhotos"}`}>
+    <div className={`photoCaptureButton ${displayCount > 0 ? "hasPhotos" : "missingPhotos"}`}>
       <button type="button" onClick={onOpen}>
         <span>{label}</span>
-        <strong>{cappedCount}/3</strong>
+        <strong>{displayCount}</strong>
       </button>
       <button type="button" disabled={!canCapture} onClick={onCapture} title={`${label} aufnehmen`}>
         <Camera size={15} />

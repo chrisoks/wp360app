@@ -4157,6 +4157,14 @@ button.projectCard:hover {
   font-size: 1rem;
 }
 
+.projectPhotoRecommendation {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
 .projectPhotoGalleryHeader button {
   min-height: 34px;
   border: 0;
@@ -4180,7 +4188,13 @@ button.projectCard:hover {
   gap: 8px;
 }
 
-.projectPhotoThumbGrid button {
+.projectPhotoThumbItem {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.projectPhotoPreviewButton {
   min-width: 0;
   display: grid;
   gap: 5px;
@@ -4196,7 +4210,7 @@ button.projectCard:hover {
   cursor: pointer;
 }
 
-.projectPhotoThumbGrid button:active img {
+.projectPhotoPreviewButton:active img {
   transform: scale(0.98);
 }
 
@@ -4214,6 +4228,22 @@ button.projectCard:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.projectPhotoDeleteButton {
+  min-height: 28px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #b91c1c;
+  font-size: 0.72rem;
+  font-weight: 950;
+  font-family: inherit;
+}
+
+.projectPhotoDeleteButton:disabled {
+  cursor: default;
+  opacity: 0.62;
 }
 
 .projectPhotoEmpty {
